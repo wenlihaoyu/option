@@ -7,10 +7,10 @@ Created on Tue Aug 23 15:11:57 2016
 
 def getmongo():
     """获取mongo配置"""
-    user = 'option'
-    password ='option'
+    user = 'mongo'
+    password ='mongo'
     host='127.0.0.1'
     port=27017
-    db='option'
+    db='fes'
     return user,password,host,port,db
     
