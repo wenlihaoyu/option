@@ -9,6 +9,7 @@ Created on Tue Aug 23 11:51:41 2016
 import traceback
 from config.mongoconfig import getmongo
 from config.postgres import getpostgres
+from help.help import dictTostr
 class database(object):
     """
     数据库操作抽象类
@@ -183,8 +184,34 @@ class postgersql(database):
         except:
             traceback.print_exc()
             return None
-         
+            
+            
+    def update(self, tablename,updatelist,wherelist):
+        """
+        update the table tablename,
+        set updatelist 
+        where wherelist 
+        example:
+        tablename = 'tables'
+        updatelist = [{'a':3,'b':5},{''a':4,'b':5}]
+        wherelist = [{'c':5},{'c':6}]
+        then this function will  execute:
+        update  tables set a = 3 and b=5 where c= 5;
+        update  tables set a = 4 and b=5 where c= 6;
+        """
+        updateSql = """update %s set %s where %s"""
+        cur = self.__conn.cursor()
+        for update,where in updatelist,wherelist:
+            try:
+               cur.execute(updateSql,(tablename,dictTostr(update),dictTostr(where)))
+            except:
+                traceback.print_exc()
+        cur.close()
+        
     def close(self):
+        """
+        close the database connection
+        """
         try:
             
            self.__conn.close()
