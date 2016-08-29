@@ -26,3 +26,22 @@ def timedelta(s,day,format='%Y-%m-%d'):
    except:
        return None
         
+        
+def getColname(tablename):
+            """
+            获取表的字段
+            """
+            sql = """SELECT attname
+                 FROM
+                       pg_attribute
+                       INNER JOIN pg_class  ON pg_attribute.attrelid = pg_class.oid
+                       INNER JOIN pg_type   ON pg_attribute.atttypid = pg_type.oid
+                       LEFT OUTER JOIN pg_attrdef ON pg_attrdef.adrelid = pg_class.oid AND pg_attrdef.adnum = pg_attribute.attnum
+                       LEFT OUTER JOIN pg_description ON pg_description.objoid = pg_class.oid AND pg_description.objsubid = pg_attribute.attnum
+                 WHERE
+                       pg_attribute.attnum > 0
+                      AND attisdropped <> 't'
+                       AND pg_class.relname= '%s'  
+                 ORDER BY pg_attribute.attnum ;"""%tablename
+            return sql
+     

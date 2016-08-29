@@ -8,6 +8,7 @@ Created on Tue Aug 23 11:51:41 2016
 
 import traceback
 from config.mongoconfig import getmongo
+from config.postgres import getpostgres
 class database(object):
     """
     数据库操作抽象类
@@ -123,26 +124,75 @@ class postgersql(database):
     """
     postgersql数据库相关操作
     """
-    def __init__(self,db,user,password,host,port):
+    
+    def __init__(self):
+        user,password,host,port,db = getpostgres()
         database.__init__(self,db,user,password,host,port)
+        self.__connect()
         
-    def connect(self):
+    def __connect(self):
         """
         连接数据库，连接失败返回错误日志
         """
         import psycopg2
         try:
-           conn = psycopg2.connect(database=self.database, user=self.user, password=self.password, host=self.host, port=self.port)
+           conn = psycopg2.connect(database=self.db, user=self.user, password=self.password, host=self.host, port=self.port)
            conn.autocommit =True##自动提交
-           self.conn = conn
+           self.__conn = conn
         except:
+            
            #logs('database','postgersql','connect',traceback.format_exc())
-           self.conn = None
+           self.__conn = None
     
 
-    def select(self,tablename,wherelist):
-        self.conn
+    def select(self,tablename,colname,wherestring):
+        """
+        tablename:表名称
+        colname:字段名称
+        wherelist:过滤条件字符串
+        where='a=5 and b=5'
+        返回结果：字典
+        """
+        cur = self.__conn.cursor()
+        if colname=='*':
+            from help.help import getColname 
+            sql = getColname(tablename)##获取表的全部字段名
+            try:
+                cur.execute(sql)
+                colname = sum(cur.fetchall(),())
+                
+            except:
+                traceback.print_exc()
+                
+        colnames = ','.join(colname)
         
-    
+        
+        
+        try:
+            
+            if wherestring is not None:
+                
+               sql = "select %s from %s where %s"""%(colnames,tablename,wherestring)
+            else:
+                sql = "select %s from %s"""%(colnames,tablename)
+            cur.execute(sql)
+            data = cur.fetchall()
+            
+            cur.close()
+            return map(lambda x:dict(zip(colname,x)),data)
+        except:
+            traceback.print_exc()
+            return None
+         
+    def close(self):
+        try:
+            
+           self.__conn.close()
+            
+        except:
+            traceback.print_exc()
+            
+        
+   
         
 
