@@ -201,9 +201,9 @@ class postgersql(database):
         """
         updateSql = """update %s set %s where %s"""
         cur = self.__conn.cursor()
-        for update,where in updatelist,wherelist:
+        for update,where in zip(updatelist,wherelist):
             try:
-               cur.execute(updateSql,(tablename,dictTostr(update),dictTostr(where)))
+               cur.execute(updateSql%(tablename,dictTostr(update),dictTostr(where)))
             except:
                 traceback.print_exc()
         cur.close()

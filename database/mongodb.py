@@ -78,7 +78,7 @@ class BankRate(object):
         """
         获取利率最大的日期对应的日期
         """
-        key={'code':True}
+        key={'index':True}
         Time = strTostr(getNow('%Y'),'%Y')
         initial ={'rate':0,'datadate':Time}
         reduces = """function(doc,prev){
