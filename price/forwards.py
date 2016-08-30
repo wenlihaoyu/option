@@ -10,7 +10,7 @@ from config.postgres  import  forward_option
 from database.mongodb import  RateExchange
 from database.mongodb import  BankRate
 from database.database import postgersql
-
+from numpy import float64
 from main.forward     import OrdinaryForward
 class forwards(option):
     """
@@ -19,8 +19,9 @@ class forwards(option):
 
     def __init__(self):
         option.__init__(self)
-        self.getDataFromPostgres()
-        self.getDataFromMongo()
+        self.getDataFromPostgres()##从post提取数据
+        self.getDataFromMongo()##从mongo提取数据并更新损益
+        self.updateDataToPostgres()##更新数据到post
         
     def getDataFromMongo(self):
         """
@@ -48,7 +49,7 @@ class forwards(option):
             ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
             SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
             BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
-            sell_amount = float(lst['sell_amount'])
+            sell_amount = float64(lst['sell_amount'])
             if BuyRate is not  None and BuyRate !=[]:
                 BuyRate=float(BuyRate[0]['rate'])/100.0
                 
@@ -58,7 +59,8 @@ class forwards(option):
             LockedRate = float(lst['rate'])
             currentRate = currency_dict[currency_pair]
             deliverydate = dateTostr(lst['delivery_date'])
-            if buy_currency+buy_currency==currency_pair:
+            
+            if sell_currency+buy_currency==currency_pair:
                LockedRate = 1.0/LockedRate
                currentRate = 1.0/currentRate
             forwarddict[lst['id']] = self.cumputeLost(SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount)

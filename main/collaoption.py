@@ -42,7 +42,7 @@ def CollaOption(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,cur
                                
     """
     ##判断当前日期是否已过厘定日期
-    Now = getNow()
+    Now = strTodate(getNow('%Y-%m-%d %H:%M:%S'),'%Y-%m-%d %H:%M:%S')
     deliverydate = strTodate(deliverydate+' 16:30:00','%Y-%m-%d %H:%M:%S')
     Setdate = strTodate(Setdate+' 16:30:00','%Y-%m-%d %H:%M:%S')##下午16:30:00的厘定汇率
     if Now<=Setdate or SetRate is None:

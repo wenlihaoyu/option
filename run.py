@@ -5,6 +5,6 @@ Created on Mon Aug 29 16:36:54 2016
 @author: lywen
 """
 
-from job import *
+from price.swapoption import SwapOptions
 if '__main__'==__name__:
-    fd = forwards()
+    fd = SwapOptions()
