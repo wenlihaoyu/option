@@ -63,7 +63,7 @@ class forwards(option):
             if sell_currency+buy_currency==currency_pair:
                LockedRate = 1.0/LockedRate
                currentRate = 1.0/currentRate
-            forwarddict[lst['id']] = self.cumputeLost(SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount)
+            forwarddict[lst['trade_id']] = self.cumputeLost(SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount)
         self.forwarddict = forwarddict
             
                 
@@ -74,7 +74,7 @@ class forwards(option):
         Now = getNow('%Y-%m-%d')
   
         post = postgersql()
-        colname = ['id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency','buy_currency']
+        colname = ['trade_id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency','buy_currency']
         wherestring = """ delivery_date>='%s'"""%Now
        
         self.data = post.select(forward_option,colname,wherestring)
@@ -97,7 +97,7 @@ class forwards(option):
         for key in self.forwarddict:
             if self.forwarddict[key] is not None:
                updatelist.append({'ex_pl':self.forwarddict[key]})
-               wherelist.append({'id':key})
+               wherelist.append({'trade_id':key})
         
         post.update(forward_option,updatelist,wherelist)
         post.close()

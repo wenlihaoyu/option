@@ -106,7 +106,7 @@ class CollaOptions(option):
         Now = getNow('%Y-%m-%d')
   
         post = postgersql()
-        colname = ['id',
+        colname = ['trade_id',
                     'currency_pair',
                     'sell_currency',
                     'buy_currency',
@@ -138,7 +138,7 @@ class CollaOptions(option):
         for key in self.forwarddict:
             if self.forwarddict[key] is not None:
                updatelist.append({'ex_pl':self.forwarddict[key]})
-               wherelist.append({'id':key})
+               wherelist.append({'trade_id':key})
         
         post.update(collars_option,updatelist,wherelist)
         post.close()

@@ -91,7 +91,7 @@ class SwapOptions(option):
                currentRate = 1.0/currentRate
                
                
-            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,self.delta,sell_amount,capped_exrate)
+            forwarddict[lst['trade_id']] = self.cumputeLost(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,self.delta,sell_amount,capped_exrate)
         self.forwarddict = forwarddict
             
                 
@@ -102,7 +102,7 @@ class SwapOptions(option):
         Now = getNow('%Y-%m-%d')
   
         post = postgersql()
-        colname = ['id',
+        colname = ['trade_id',
                    'currency_pair',
                    'sell_currency',
                    'buy_currency',
@@ -139,7 +139,7 @@ class SwapOptions(option):
         for key in self.forwarddict:
             if self.forwarddict[key] is not None:
                updatelist.append({'ex_pl':self.forwarddict[key]})
-               wherelist.append({'id':key})
+               wherelist.append({'trade_id':key})
         
         post.update(swaps_option,updatelist,wherelist)
         post.close()    
