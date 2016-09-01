@@ -16,7 +16,7 @@ from main.participateforward import  participateforward
 
 class participateforwards(option):
     """
-    普通外汇远期定价
+    参与式远期
     """
 
     def __init__(self,delta=0.1):
