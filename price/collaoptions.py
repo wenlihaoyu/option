@@ -6,9 +6,9 @@ CollaOption 领式期权计算
 """
 
 
-from price.job import option
+from job import option
 from help.help import getNow,getRate,getcurrency,dateTostr
-from config.postgres  import  collars_option##table name
+from config.postgres  import  table_collars_option##table name
 from database.mongodb import  RateExchange
 from database.mongodb import  BankRate
 from database.database import postgersql
@@ -89,13 +89,13 @@ class CollaOptions(option):
             currentRate = currency_dict[currency_pair]
             deliverydate = dateTostr(lst['delivery_date'])
             
-            if sell_currency+buy_currency==currency_pair:
+            if sell_currency+buy_currency!=currency_pair:
                strikeLowerRate = 1.0/strikeLowerRate
                strikeUpperRate = 1.0/strikeUpperRate
                currentRate = 1.0/currentRate
                
                
-            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,self.delta,sell_amount)
+            forwarddict[lst['trade_id']] = self.cumputeLost(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,self.delta,sell_amount)
         self.forwarddict = forwarddict
             
                 
@@ -118,7 +118,7 @@ class CollaOptions(option):
                     'exe_upexrate']
         wherestring = """ delivery_date>='%s'"""%Now
        
-        self.data = post.select(collars_option,colname,wherestring)
+        self.data = post.select(table_collars_option,colname,wherestring)
         
     def  cumputeLost(self,Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,delta,sell_amount):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
@@ -140,5 +140,5 @@ class CollaOptions(option):
                updatelist.append({'ex_pl':self.forwarddict[key]})
                wherelist.append({'trade_id':key})
         
-        post.update(collars_option,updatelist,wherelist)
+        post.update(table_collars_option,updatelist,wherelist)
         post.close()

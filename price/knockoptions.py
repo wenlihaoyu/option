@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Aug 29 17:56:36 2016
-forwards
+Created on Thu Sep  1 15:49:35 2016
+敲出式期权
 @author: lywen
 """
+
+
 from job import option
 from help.help import getNow,getRate,getcurrency,dateTostr
 from config.postgres  import  table_knock_option
@@ -11,14 +13,16 @@ from database.mongodb import  RateExchange
 from database.mongodb import  BankRate
 from database.database import postgersql
 from numpy import float64
-from main.forward     import OrdinaryForward
-class forwards(option):
+from main.knockoption import  knockoption
+
+class knockoptions(option):
     """
     普通外汇远期定价
     """
 
-    def __init__(self):
+    def __init__(self,delta=0.1):
         option.__init__(self)
+        self.delta  =delta
         self.getDataFromPostgres()##从post提取数据
         self.getDataFromMongo()##从mongo提取数据并更新损益
         self.updateDataToPostgres()##更新数据到post
@@ -50,6 +54,10 @@ class forwards(option):
             SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
             BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
             sell_amount = float64(lst['sell_amount'])
+            Setdate = dateTostr(lst['determined_date'])
+            SetRate = RateExchange(currency_pair).getdayMax(Setdate)##厘定日汇率
+            kncockRate = float64(lst['knockout_exrate'] )##敲出汇率
+            
             if BuyRate is not  None and BuyRate !=[]:
                 BuyRate=float(BuyRate[0]['rate'])/100.0
                 
@@ -63,9 +71,10 @@ class forwards(option):
             if sell_currency+buy_currency!=currency_pair:
                LockedRate = 1.0/LockedRate
                currentRate = 1.0/currentRate
-            forwarddict[lst['trade_id']] = self.cumputeLost(SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount)
+            forwarddict[lst['trade_id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,self.delta,sell_amount)
         self.forwarddict = forwarddict
-            
+        
+          
                 
     
     def getDataFromPostgres(self):
@@ -74,16 +83,27 @@ class forwards(option):
         Now = getNow('%Y-%m-%d')
   
         post = postgersql()
-        colname = ['trade_id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency','buy_currency']
+        colname = [
+                'trade_id',
+               'currency_pair',
+               'sell_currency',
+               'buy_currency',
+               'sell_amount',
+               'trade_date',
+               'determined_date',
+               'delivery_date',
+               'rate',
+               'knockout_exrate'
+                ]
         wherestring = """ delivery_date>='%s'"""%Now
        
         self.data = post.select(table_knock_option,colname,wherestring)
         
-    def  cumputeLost(self,SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount):
+    def  cumputeLost(self,Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,delta,sell_amount  ):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:
-           return sell_amount*OrdinaryForward(SellRate,BuyRate,deliverydate,LockedRate,currentRate)
+           return sell_amount*knockoption(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,delta)
       
         
     def updateDataToPostgres(self):

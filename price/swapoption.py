@@ -5,9 +5,9 @@ swapoption 定价
 @author: lywen
 """
 
-from price.job import option
+from job import option
 from help.help import getNow,dateTostr
-from config.postgres   import  swaps_option##table name
+from config.postgres   import  table_swaps_option##table name
 from database.mongodb  import  RateExchange
 #from database.mongodb  import  BankRate
 from database.database import postgersql
@@ -83,7 +83,7 @@ class SwapOptions(option):
             currentRate = currency_dict[currency_pair] ## 实时汇率
             deliverydate = dateTostr(lst['delivery_date'])## 交割日期
       
-            if sell_currency+buy_currency==currency_pair:
+            if sell_currency+buy_currency !=currency_pair:
                LockedRate = 1.0/LockedRate
                capped_exrate = 1.0/capped_exrate
                if SetRate is not None:
@@ -119,7 +119,7 @@ class SwapOptions(option):
                    ]
         wherestring = """ delivery_date>='%s'"""%Now
        
-        self.data = post.select(swaps_option,colname,wherestring)
+        self.data = post.select(table_swaps_option,colname,wherestring)
         
     def  cumputeLost(self,Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,sell_amount,capped_exrate):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
@@ -141,6 +141,6 @@ class SwapOptions(option):
                updatelist.append({'ex_pl':self.forwarddict[key]})
                wherelist.append({'trade_id':key})
         
-        post.update(swaps_option,updatelist,wherelist)
+        post.update(table_swaps_option,updatelist,wherelist)
         post.close()    
 

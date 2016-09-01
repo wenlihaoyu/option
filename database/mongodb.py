@@ -38,7 +38,7 @@ class RateExchange(object):
     def getdayMax(self,Time=None):
         key={'code':True}
         
-        Time_end = strTostr(timedelta(Time,1))
+        Time_end = strTostr(timedelta(Time,17.0/24))##当天时间下午5点
         Time = strTostr(Time)
         initial ={'Close':0,'Time':Time}
        

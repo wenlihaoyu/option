@@ -35,10 +35,9 @@ def OrdinaryForward(SellRate,BuyRate,deliverydate,LockedRate,currentRate):
     T = T/1.0/60/60/24##换算到多少天
     if T<0:
         T=0
-    yeardays = 365
-    SellRate_update = SellRate/360.0*yeardays##调整利率
-    BuyRate_update =  BuyRate/360.0*yeardays##调整利率
-    S0 = LockedRate
-    St =currentRate*np.exp(SellRate_update*T/yeardays) / np.exp(BuyRate_update*T/yeardays)
-    return (St - S0)/LockedRate
     
+    SellRate_update = SellRate/360.0##调整利率
+    BuyRate_update =  BuyRate/360.0##调整利率
+    S0 = LockedRate* np.exp((BuyRate_update -SellRate_update) *T)
+    St = currentRate
+    return (St - S0)/currentRate

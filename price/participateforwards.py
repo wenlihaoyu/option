@@ -1,59 +1,30 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Aug 29 13:29:50 2016
-main
+Created on Thu Sep  1 15:02:50 2016
+participateforward 价值计算
 @author: lywen
 """
-from help.help import getNow,strTodate,getRate,getcurrency,dateTostr
-from config.postgres  import  forward_option
+
+from job import option
+from help.help import getNow,getRate,getcurrency,dateTostr
+from config.postgres  import  table_participate_forward
 from database.mongodb import  RateExchange
 from database.mongodb import  BankRate
 from database.database import postgersql
+from numpy import float64
+from main.participateforward import  participateforward
 
-from main.forward     import OrdinaryForward
-
-class option(object):
-    """
-    产品定价
-    """
-    def __init__(self):
-        pass
-    
-    def getDataFromMongo(self):
-        """
-        从mongo获取拆借利率及实时汇率
-        """
-        pass
-    
-    def getDataFromPostgres(self):
-        """
-        从postgres获取结构产品数据
-        """
-        pass
-
-    def cumputeLost(self):
-        """
-        计算结果行产品数据的损益
-        """
-        pass
-    
-    def updateDataToPostgres(self):
-        """
-        将计算的损益更新到数据库
-        """
-        pass
-    
-
-
-class forwards(option):
+class participateforwards(option):
     """
     普通外汇远期定价
     """
 
-    def __init__(self):
+    def __init__(self,delta=0.1):
         option.__init__(self)
-        self.getDataFromPostgres()
-        self.getDataFromMongo()
+        self.delta  =delta
+        self.getDataFromPostgres()##从post提取数据
+        self.getDataFromMongo()##从mongo提取数据并更新损益
+        self.updateDataToPostgres()##更新数据到post
         
     def getDataFromMongo(self):
         """
@@ -81,7 +52,10 @@ class forwards(option):
             ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
             SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
             BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
-            sell_amount = float(lst['sell_amount'])
+            sell_amount = float64(lst['sell_amount'])
+            Setdate = dateTostr(lst['determined_date'])
+            SetRate = RateExchange(currency_pair).getdayMax(Setdate)##厘定日汇率
+            
             if BuyRate is not  None and BuyRate !=[]:
                 BuyRate=float(BuyRate[0]['rate'])/100.0
                 
@@ -91,12 +65,14 @@ class forwards(option):
             LockedRate = float(lst['rate'])
             currentRate = currency_dict[currency_pair]
             deliverydate = dateTostr(lst['delivery_date'])
-            if buy_currency+buy_currency==currency_pair:
+            
+            if sell_currency+buy_currency!=currency_pair:
                LockedRate = 1.0/LockedRate
                currentRate = 1.0/currentRate
-            forwarddict[lst['id']] = self.cumputeLost(SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount)
+            forwarddict[lst['trade_id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,self.delta,sell_amount)
         self.forwarddict = forwarddict
-            
+        
+          
                 
     
     def getDataFromPostgres(self):
@@ -105,16 +81,26 @@ class forwards(option):
         Now = getNow('%Y-%m-%d')
   
         post = postgersql()
-        colname = ['id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency','buy_currency']
+        colname = [
+                'trade_id',
+               'currency_pair',
+               'sell_currency',
+               'buy_currency',
+               'sell_amount',
+               'trade_date',
+               'determined_date',
+               'delivery_date',
+               'rate'
+                ]
         wherestring = """ delivery_date>='%s'"""%Now
        
-        self.data = post.select(forward_option,colname,wherestring)
+        self.data = post.select(table_participate_forward,colname,wherestring)
         
-    def  cumputeLost(self,SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount):
+    def  cumputeLost(self,Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta,sell_amount  ):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:
-           return sell_amount*OrdinaryForward(SellRate,BuyRate,deliverydate,LockedRate,currentRate)
+           return sell_amount*participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta)
       
         
     def updateDataToPostgres(self):
@@ -128,7 +114,7 @@ class forwards(option):
         for key in self.forwarddict:
             if self.forwarddict[key] is not None:
                updatelist.append({'ex_pl':self.forwarddict[key]})
-               wherelist.append({'id':key})
+               wherelist.append({'trade_id':key})
         
-        post.update(forward_option,updatelist,wherelist)
+        post.update(table_participate_forward,updatelist,wherelist)
         post.close()
