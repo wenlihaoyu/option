@@ -95,7 +95,7 @@ def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRa
     else:
         checkin = np.exp(-T*BuyRate_update) 
         checkout =np.exp(-T*SellRate_update)
-    return  (checkin - checkout)/currentRate - value+Lost
+    return value - ( (checkin/currentRate - checkout)  +Lost)
         
     
 def SwapOptionLost(currentRate,Now,deliverydate,SellRate_update,BuyRate_update,delta,capped_exrate):

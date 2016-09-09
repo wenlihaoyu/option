@@ -98,7 +98,8 @@ class mongodb(database):
         where:{'a':1}
         """
         collection = self.__conn[collectname]
-        return collection.find(where)
+        data = collection.find(where)
+        return [lst for lst in data]
         
     def group(self,collectname,key, condition, initial, reduce, finalize=None, **kwargs):
         """
