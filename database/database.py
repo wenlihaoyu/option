@@ -8,7 +8,7 @@ Created on Tue Aug 23 11:51:41 2016
 
 import traceback
 from config.mongoconfig import getmongo
-from config.postgres import getpostgres
+from config.postgreconfig import getpostgresql
 from help.help import dictTostr
 class database(object):
     """
