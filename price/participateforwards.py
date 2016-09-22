@@ -21,6 +21,7 @@ class participateforwards(option):
 
     def __init__(self,delta=0.1):
         option.__init__(self)
+        self.table = table_participate_forward
         self.delta  =delta
         self.getDataFromPostgres()##从post提取数据
         self.getDataFromMongo()##从mongo提取数据并更新损益
@@ -94,7 +95,7 @@ class participateforwards(option):
                 ]
         wherestring = """ delivery_date>='%s'"""%Now
        
-        self.data = post.select(table_participate_forward,colname,wherestring)
+        self.data = post.select(self.table,colname,wherestring)
         
     def  cumputeLost(self,Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta,sell_amount  ):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
@@ -116,5 +117,5 @@ class participateforwards(option):
                updatelist.append({'ex_pl':self.forwarddict[key]})
                wherelist.append({'trade_id':key})
         
-        post.update(table_participate_forward,updatelist,wherelist)
+        post.update(self.table,updatelist,wherelist)
         post.close()

@@ -32,6 +32,7 @@ class CollaOptions(option):
 
     def __init__(self,delta=0.1):
         option.__init__(self)
+        self.table = table_collars_option
         self.delta = delta##波动率
         self.getDataFromPostgres()
         self.getDataFromMongo()
@@ -118,7 +119,7 @@ class CollaOptions(option):
                     'exe_upexrate']
         wherestring = """ delivery_date>='%s'"""%Now
        
-        self.data = post.select(table_collars_option,colname,wherestring)
+        self.data = post.select(self.table,colname,wherestring)
         
     def  cumputeLost(self,Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,delta,sell_amount):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
@@ -140,5 +141,5 @@ class CollaOptions(option):
                updatelist.append({'ex_pl':self.forwarddict[key]})
                wherelist.append({'trade_id':key})
         
-        post.update(table_collars_option,updatelist,wherelist)
+        post.update(self.table,updatelist,wherelist)
         post.close()

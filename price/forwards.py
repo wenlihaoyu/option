@@ -6,7 +6,7 @@ forwards
 """
 from job import option
 from help.help import getNow,getRate,getcurrency,dateTostr
-from config.postgres  import  table_knock_option
+from config.postgres  import  table_comlong_term
 from database.mongodb import  RateExchange
 from database.mongodb import  BankRate
 from database.database import postgersql
@@ -18,6 +18,7 @@ class forwards(option):
     """
 
     def __init__(self):
+        self.table = table_comlong_term
         option.__init__(self)
         self.getDataFromPostgres()##从post提取数据
         self.getDataFromMongo()##从mongo提取数据并更新损益
@@ -77,7 +78,7 @@ class forwards(option):
         colname = ['trade_id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency','buy_currency']
         wherestring = """ delivery_date>='%s'"""%Now
        
-        self.data = post.select(table_knock_option,colname,wherestring)
+        self.data = post.select(self.table,colname,wherestring)
         
     def  cumputeLost(self,SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
@@ -99,5 +100,5 @@ class forwards(option):
                updatelist.append({'ex_pl':self.forwarddict[key]})
                wherelist.append({'trade_id':key})
         
-        post.update(table_knock_option,updatelist,wherelist)
+        post.update(self.table,updatelist,wherelist)
         post.close()

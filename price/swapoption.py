@@ -17,8 +17,7 @@ from numpy import float64
 from main.swapoption  import SwapOption
 class SwapOptions(option):
     """
-    CollaOption 领式期权计算
-    领式期权:
+    区间式货币掉期or货币互换or封顶式期权:
         Setdate:厘定日
         SetRate:厘定日汇率
         deliverydate:交割日
@@ -32,6 +31,7 @@ class SwapOptions(option):
 
     def __init__(self,delta=0.1):
         option.__init__(self)
+        self.table = table_swaps_option
         self.delta = delta##波动率
         self.getDataFromPostgres()
         self.getDataFromMongo()
@@ -119,7 +119,7 @@ class SwapOptions(option):
                    ]
         wherestring = """ delivery_date>='%s'"""%Now
        
-        self.data = post.select(table_swaps_option,colname,wherestring)
+        self.data = post.select(self.table,colname,wherestring)
         
     def  cumputeLost(self,Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,sell_amount,capped_exrate):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
@@ -141,6 +141,6 @@ class SwapOptions(option):
                updatelist.append({'ex_pl':self.forwarddict[key]})
                wherelist.append({'trade_id':key})
         
-        post.update(table_swaps_option,updatelist,wherelist)
+        post.update(self.table,updatelist,wherelist)
         post.close()    
 

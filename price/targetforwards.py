@@ -16,7 +16,7 @@ from main.targetforward import  TargetRedemptionForward
 
 class TargetRedemptionForwards(option):
     """
-    参与式远期
+    目标可赎回式远期
     """
 
     def __init__(self):
@@ -87,13 +87,13 @@ class TargetRedemptionForwards(option):
              'trade_id',
              'currency_pair',
              'sell_currency',
-	       'buy_currency',
-	       'sell_amount',
-	       'trade_date',
-	       'determined_date',
-	       'delivery_date',
-	       'trp',
-	       'rate'
+             'buy_currency',
+             'sell_amount',
+             'trade_date',
+             'determined_date',
+             'delivery_date',
+             'trp',
+             'rate'
                 ]
         wherestring = None
        

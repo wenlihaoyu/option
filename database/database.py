@@ -128,7 +128,7 @@ class postgersql(database):
     """
     
     def __init__(self):
-        user,password,host,port,db = getpostgres()
+        user,password,host,port,db = getpostgresql()
         database.__init__(self,db,user,password,host,port)
         self.__connect()
         
