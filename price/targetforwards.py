@@ -5,13 +5,13 @@ Target Redemption Forward
 @author: lywen
 
 """
-#from job import option
-from help.help import getNow,getRate,getcurrency,dateTostr
+from job import option
+from help.help import getNow,getRate,getcurrency
 from config.postgres  import  table_frs_option
 from database.mongodb import  RateExchange
 from database.mongodb import  BankRate
 from database.database import postgersql,mongodb
-from numpy import float64
+#from numpy import float64
 from main.targetforward import  TargetRedemptionForward
 import pandas as pd
 import numpy as np
@@ -23,72 +23,83 @@ class TargetRedemptionForwards(option):
     目标可赎回式远期
     """
 
-    def __init__(self):
+    def __init__(self,Now):
         option.__init__(self)
        # self.delta  =delta
         self.table = table_frs_option
+        self.Now = Now
         self.mongo = mongodb()
         self.getDataFromPostgres()##从post提取数据
-       # self.getDataFromMongo()##从mongo提取数据并更新损益
+        self.getDataFromMongo()##从mongo提取数据并更新损益
        # self.updateDataToPostgres()##更新数据到post
         
     def getDataFromMongo(self):
         """
         from mongo get the currency_pairs and bank_rate
         """
-        ## currency_pairs
-        currency_pairs = list(set(map(lambda x:x['currency_pair'],self.data)))
-        currency_dict = {}
-        for currency_pair in currency_pairs:
-            RE = RateExchange(currency_pair).getMax()
-            if RE is not None and RE !=[]:
-               currency_dict[currency_pair] = RE[0]['Close']
-        self.currency_dict = currency_dict
-        
-        ##bank_rate
-        forwarddict= {}
-        for lst in self.data:
-            sell_currency = lst['sell_currency']
-            sell_currency_index = getcurrency(sell_currency)
+        if self.data !=[]:
+           
+           S = {}##货币对最新汇率
+           spot  = {}
+           #mongo = mongodb()
+           trfdata = {}
+           for lst in self.data:
+               ##获取厘定日汇率，未到立定日，以None填充
+               code = lst.get('currency_pair')
+               date = lst.get('determined_date').strftime('%Y-%m-%d')
+               determined_date_rate = getkline(code,date,self.mongo)##获取厘定日汇率
+               lst.update({'determined_date_rate':determined_date_rate})
+               
+               sell_currency = lst['sell_currency']
+               sell_currency_index = getcurrency(sell_currency)
             
-            buy_currency  = lst['buy_currency']
-            buy_currency_index = getcurrency(buy_currency)
-            
-            currency_pair = lst['currency_pair']
-            ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
-            SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
-            BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
-            sell_amount = float64(lst['sell_amount'])
-            Setdate = dateTostr(lst['determined_date'])
-            SetRate = RateExchange(currency_pair).getdayMax(Setdate)##厘定日汇率
-            
-            if BuyRate is not  None and BuyRate !=[]:
-                BuyRate=float(BuyRate[0]['rate'])/100.0
+               buy_currency  = lst['buy_currency']
+               buy_currency_index = getcurrency(buy_currency)
+               ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
+               SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
+               BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
+               if SellRate is None or SellRate==[]:
+                   SellRate = 0
+               else:
+                   SellRate = float(SellRate[0].get('rate'))
+               if BuyRate is None or BuyRate==[]:
+                   BuyRate = 0
+               else:
+                   BuyRate = float(BuyRate[0].get('rate'))   
+                   
+               if S.get(code) is None:
+                   RE = RateExchange(code).getMax()
+                   if RE is not None and RE !=[]:
+                      S[code] =  RE[0].get('Close')##获取实时汇率
+               
+               if spot.get(code) is None:
+                   dayspot = getdayspot(code,self.mongo)
+                   dayspot = datafill(dayspot)
+                   spot[code] = dayspot
                 
-            if SellRate is not  None and SellRate !=[]:
-                SellRate=float(SellRate[0]['rate'])/100.0
-                
-            LockedRate = float(lst['rate'])
-            currentRate = currency_dict[currency_pair]
-            deliverydate = dateTostr(lst['delivery_date'])
-            
-            if sell_currency+buy_currency!=currency_pair:
-               LockedRate = 1.0/LockedRate
-               currentRate = 1.0/currentRate
-            forwarddict[lst['trade_id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,self.delta,sell_amount)
-        self.forwarddict = forwarddict
-        
-          
+               if trfdata.get(lst['trade_id']) is None:
+                   lags = (lst['delivery_date'] -lst['trade_date']).days
+                   trfdata[lst['trade_id']] = {'orderlist':[],
+                                                'spotList':lagdata(spot[code],lags),##lags时间段收益时间序列
+                                                 'S':S[code],##实时汇率
+                                                 'SellRate':SellRate,##卖出货币拆解利率
+                                                 'BuyRate':BuyRate,##买入货币拆解利率
+                                                 'K':float(lst.get('rate')),##锁定汇率
+                                                 'TIV':float(lst.get('trp')),##目标收益
+                                                 'lags':lags,##每期时间间隔
+                                                 'Now':self.Now,##损益计算时间
+                                                 }
+               trfdata[lst['trade_id']]['orderlist'].append(lst)
+        self.trfdata = trfdata
                 
     
     def getDataFromPostgres(self):
-        
-        
-        #Now = getNow('%Y-%m-%d')
-  
+        """
+        获取结构性产品的订单数据
+        """
         post = postgersql()
         colname = [
-                 
+              'id',                 
              'trade_id',
              'currency_pair',
              'sell_currency',
@@ -102,37 +113,32 @@ class TargetRedemptionForwards(option):
                 ]
         wherestring = None
        
-        data = post.select(self.table,colname,wherestring)
+        self.data = post.select(self.table,colname,wherestring)
         
-        if data !=[]:
-           self.data ={}
-           #mongo = mongodb()
-           for lst in data:
-               ##获取厘定日汇率，未到立定日，以None填充
-               code = lst.get('currency_pair')
-               date = lst.get('determined_date').strftime('%Y-%m-%d')
-               determined_date_rate = getkline(code,date,self.mongo)
-               #spot = getdayspot(code,self.mongo)##外汇时间序列
-               #spot = datafill(spot) 
-               #lagdata(spot,lags=30)
+    def  cumputeLost(self):
+        """
+        
+        """
+        Lost =[]
+        for trade_id in self.trfdata:
+            spotList  = self.trfdata[trade_id]['spotList']
+            orderlist = self.trfdata[trade_id]['orderlist']
+            S         = self.trfdata[trade_id]['S']
+            K         = self.trfdata[trade_id]['K']
+            SellRate  = self.trfdata[trade_id]['SellRate']
+            BuyRate   = self.trfdata[trade_id]['BuyRate']
+            Now       = self.trfdata[trade_id]['Now']
+            
+            lags      = self.trfdata[trade_id]['lags']
+            TIV       = self.trfdata[trade_id]['TIV']
+            TRF = TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,lags,Now,TIV)##计算损益值
+            Lost.extend(TRF)
+        
+        
                
-               lst.update({'determined_date_rate':determined_date_rate})
-               if self.data.get(lst['trade_id']) is None:
-                   self.data[lst['trade_id']] = []
-               self.data[lst['trade_id']].append(lst)
-           #mongo.close()
-           for trade_id in self.data:
-               pass
-           self.data = data   
-               
-        
-        
-    def  cumputeLost(self,Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta,sell_amount  ):
-       if SellRate in [None,[]] or BuyRate in [None,[]]:
-           return None
-       else:
-           return sell_amount*TargetRedemptionForward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta)
-      
+           
+           
+       
         
     def updateDataToPostgres(self):
         """
@@ -224,3 +230,9 @@ def lagdata(spot,lags=30):
     spot['Close_%d_rate'%lags] = (spot['Close'] - spot['Close_%d'%lags])/spot['Close_%d'%lags]
     
     return spot['Close_%d_rate'%lags].values
+    
+    
+
+    
+#for i in range(len(trf.data)):trf.data[i]['trade_id'] = i   
+#trf.data = filter(lambda x:x['currency_pair']!='EUREUR',trf.data)
