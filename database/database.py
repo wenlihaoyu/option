@@ -160,9 +160,10 @@ class postgersql(database):
             from help.help import getColname 
             sql = getColname(tablename)##获取表的全部字段名
             try:
+                #print sql
                 cur.execute(sql)
                 colname = sum(cur.fetchall(),())
-                
+                #print colname
             except:
                 traceback.print_exc()
                 

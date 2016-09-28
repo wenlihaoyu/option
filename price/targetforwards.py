@@ -5,14 +5,18 @@ Target Redemption Forward
 @author: lywen
 
 """
-from job import option
+#from job import option
 from help.help import getNow,getRate,getcurrency,dateTostr
 from config.postgres  import  table_frs_option
 from database.mongodb import  RateExchange
 from database.mongodb import  BankRate
-from database.database import postgersql
+from database.database import postgersql,mongodb
 from numpy import float64
 from main.targetforward import  TargetRedemptionForward
+import pandas as pd
+import numpy as np
+
+from help.help import timedelta
 
 class TargetRedemptionForwards(option):
     """
@@ -23,6 +27,7 @@ class TargetRedemptionForwards(option):
         option.__init__(self)
        # self.delta  =delta
         self.table = table_frs_option
+        self.mongo = mongodb()
         self.getDataFromPostgres()##从post提取数据
        # self.getDataFromMongo()##从mongo提取数据并更新损益
        # self.updateDataToPostgres()##更新数据到post
@@ -101,10 +106,24 @@ class TargetRedemptionForwards(option):
         
         if data !=[]:
            self.data ={}
+           #mongo = mongodb()
            for lst in data:
+               ##获取厘定日汇率，未到立定日，以None填充
+               code = lst.get('currency_pair')
+               date = lst.get('determined_date').strftime('%Y-%m-%d')
+               determined_date_rate = getkline(code,date,self.mongo)
+               #spot = getdayspot(code,self.mongo)##外汇时间序列
+               #spot = datafill(spot) 
+               #lagdata(spot,lags=30)
+               
+               lst.update({'determined_date_rate':determined_date_rate})
                if self.data.get(lst['trade_id']) is None:
                    self.data[lst['trade_id']] = []
                self.data[lst['trade_id']].append(lst)
+           #mongo.close()
+           for trade_id in self.data:
+               pass
+           self.data = data   
                
         
         
@@ -127,6 +146,81 @@ class TargetRedemptionForwards(option):
             if self.forwarddict[key] is not None:
                updatelist.append({'ex_pl':self.forwarddict[key]})
                wherelist.append({'trade_id':key})
-        
+          
         post.update(self.table,updatelist,wherelist)
         post.close()
+
+
+def getkline(code,date,mongo):
+    """
+    code：汇率对
+    date：日期
+    获取指定日期指定汇率对的汇率
+    """
+   
+    date = date+" 00:00:00"
+    reslut =  mongo.select('kline',{'type':'5','code':code,'Time':date})
+    
+    if reslut!=[]:
+        
+        return reslut[0].get('High') /1.0 / reslut[0].get('PriceWeight')
+    else:
+        return None
+        
+        
+        
+
+def getdayspot(code,mongo):
+    """
+    获取汇率对历史记录时间序列
+    code:汇率对
+    mongo:数据库连接实例
+    
+    """
+    spot = mongo.select('kline',{'type':'5','code':code})
+    
+    spot = pd.DataFrame(spot)
+    spot = spot[['Time','Close','PriceWeight']]
+    spot['Close'] = spot['Close']/spot['PriceWeight']
+    spot['Time'] = spot['Time'].astype(np.datetime64).dt.strftime('%Y-%m-%d')
+    return spot[['Time','Close']]
+    
+    
+    
+def datafill(spot):
+    """填充无交易日期的汇率
+        以上一个交易日的的收盘价进行填充
+    """
+    def dateseris(mindate,maxdate):
+        
+        date = timedelta(mindate,1)
+        series = []
+        while maxdate>=date:
+            series.append(date)
+
+            date = timedelta(date,1)
+
+        return series
+
+    spot = pd.merge(pd.DataFrame(dateseris(spot['Time'].min(),spot['Time'].max()),columns=['Time']),spot[['Time','Close']],on=['Time'],how='left' )
+    spot = spot.sort_values('Time')
+    for i in range(spot.shape[0]):
+        if spot['Close'].values[i].__str__()=='nan':
+            spot['Close'].values[i] = spot['Close'].values[i-1]
+    return spot
+
+def lagdata(spot,lags=30):
+    """
+    spot：每天外汇收益率时间序列
+    lags：时间长度
+    序列指定时间长度的收益率
+    """
+    spot = datafill(spot)
+    
+    spot['Close_%d'%lags] = np.repeat(None,lags).tolist() + spot['Close'].values[:-lags].tolist()
+    spot =  spot.dropna()
+    
+    
+    spot['Close_%d_rate'%lags] = (spot['Close'] - spot['Close_%d'%lags])/spot['Close_%d'%lags]
+    
+    return spot['Close_%d_rate'%lags].values
