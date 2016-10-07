@@ -123,29 +123,27 @@ def getcurrency(code):
     根据货币代码回去对应的拆借利率名称
     """        
     if code=='CNY':
-        return "shibor人民币"
+        return "Shibor人民币"
         
-    elif code=='EUR':
-        return "libor欧元"
         
     elif code=='USD':
-        return "libor美元"
+        return "Libor美元"
         
     elif code=='GBP':
-        return "libor英镑"
+        return "Libor英镑"
         
     elif code=='JPY':
-        return "libor日元"
+        return "Libor日元"
         
     elif code=='EUR':
         
-        return "euribor欧元"
+        return "Euribor欧元"
     
         
     elif code=='AUD':
-        return None
+        return '澳大利亚元'
     
     elif code=='CAD':
-        return None
+        return '加拿大元'
         
      

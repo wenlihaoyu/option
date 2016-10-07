@@ -6,7 +6,7 @@ Target Redemption Forward
 
 """
 from job import option
-from help.help import getNow,getRate,getcurrency
+from help.help import getNow,getRate,getcurrency,strTostr
 from config.postgres  import  table_frs_option
 from database.mongodb import  RateExchange
 from database.mongodb import  BankRate
@@ -17,6 +17,8 @@ import pandas as pd
 import numpy as np
 
 from help.help import timedelta
+testlag = True##是否调用测试数据
+
 
 class TargetRedemptionForwards(option):
     """
@@ -27,10 +29,17 @@ class TargetRedemptionForwards(option):
         option.__init__(self)
        # self.delta  =delta
         self.table = table_frs_option
-        self.Now = Now
-        self.mongo = mongodb()
-        self.getDataFromPostgres()##从post提取数据
-        self.getDataFromMongo()##从mongo提取数据并更新损益
+       
+        if testlag:##调用测试数据
+            from test.test import getDataFromMongo
+            
+            self.trfdata, self.data = getDataFromMongo(Now)
+            
+        else:
+            
+            self.mongo = mongodb()
+            self.getDataFromPostgres()##从post提取数据
+            self.getDataFromMongo()##从mongo提取数据并更新损益
        # self.updateDataToPostgres()##更新数据到post
         
     def getDataFromMongo(self):
@@ -78,7 +87,7 @@ class TargetRedemptionForwards(option):
                    spot[code] = dayspot
                 
                if trfdata.get(lst['trade_id']) is None:
-                   lags = (lst['delivery_date'] -lst['trade_date']).days
+                   lags = getLags(self.data,lst['trade_id'])
                    trfdata[lst['trade_id']] = {'orderlist':[],
                                                 'spotList':lagdata(spot[code],lags),##lags时间段收益时间序列
                                                  'S':S[code],##实时汇率
@@ -112,8 +121,8 @@ class TargetRedemptionForwards(option):
              'rate'
                 ]
         wherestring = None
-       
-        self.data = post.select(self.table,colname,wherestring)
+        orderby = "order by trade_id, delivery_date"
+        self.data = post.select(self.table,colname,wherestring,orderby)
         
     def  cumputeLost(self):
         """
@@ -155,6 +164,18 @@ class TargetRedemptionForwards(option):
           
         post.update(self.table,updatelist,wherelist)
         post.close()
+
+
+##找到合适的lags 
+def getLags(data,trade_id):
+    temp =[]
+    for lst in data:
+        if lst['trade_id']==trade_id:
+            temp.append(lst['determined_date'])
+            
+    return   np.diff(temp)[-1].days
+    
+    
 
 
 def getkline(code,date,mongo):
@@ -229,7 +250,7 @@ def lagdata(spot,lags=30):
     
     spot['Close_%d_rate'%lags] = (spot['Close'] - spot['Close_%d'%lags])/spot['Close_%d'%lags]
     
-    return spot['Close_%d_rate'%lags].values
+    return spot['Close_%d_rate'%lags].values/1.0/lags
     
     
 

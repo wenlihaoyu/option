@@ -39,17 +39,23 @@ def TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,logs,Now,TIV
     """
     orderlist = pd.DataFrame(orderlist)
     orderlist = orderlist.sort_values('delivery_date')
+    ## 计算当前时间到未来各厘定日及交割日的时间
+    orderlist['delivery_time'] =  (orderlist['delivery_date'] -Now).dt.total_seconds()/24.0/60/60
+    determined_time = ((orderlist['determined_date'] -Now).dt.total_seconds()/24.0/60/60)
+
+    orderlist['determined_time'] =  determined_time
+    orderlist['determined_time'] = orderlist['determined_time'].diff()
+    orderlist['determined_time'] = orderlist['determined_time'].fillna(determined_time[0])
     
     MIC = 0
-    orderlist['MIC'] = orderlist['determined_date_rate'].map(lambda x:0 if x.__str__()=='nan' else max([K-x,0]))
+    ##判断历史收益是否已达到累计收益
+    CumMIC = orderlist['determined_date_rate'].map(lambda x:0 if x.__str__()=='nan' else max([K-x,0])).sum()
+    if CumMIC>=TIV:
+        return 
+    else:
+        MIC = CumMIC
     
-    for x in orderlist['determined_date_rate'].values:
-        if x.__str__()=='nan':
-            break
-        else:
-            MIC += max([K-x,0])
-        if  MIC>=TIV:
-            pass
+    R = (SellRate - BuyRate)/360.0    
         
     #MIC = map(lambda x:0 if x<0 else x,orderlist['K'] - K)
     
@@ -57,7 +63,7 @@ def TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,logs,Now,TIV
     
     
     
-def simulationSpot(S, K, dateList, Rdistribute, lags = 30, MIC = 0, TIV = 0.05):
+def simulationSpot(S, K,orderlist, Rdistribute,R,  TIV = 0.05,times=1000):
     """
     S:当前价格
     R:锁定价格
@@ -69,15 +75,52 @@ def simulationSpot(S, K, dateList, Rdistribute, lags = 30, MIC = 0, TIV = 0.05):
     以当前价格模拟未来汇率的变得趋势，及收益情况
     
     """
+    temp = orderlist.to_dict('records')
+    orderlist_ = orderlist.copy()
+    #price = []
+    global MIC
+    MIC = 0
+    orderlist_['price'] = 0.0
+    for i in range(times):
+        spot = simulation(temp,S,Rdistribute)
+        
+        spot = np.array(map(lambda x:addMic(max(K-x,0),TIV)*K,spot))
+        MIC = 0
+        
+        orderlist_['price'] += (S - K*np.exp(-R*orderlist_['delivery_time']))*spot
+    orderlist_['price'] =orderlist_['price']/1.0/times
+    return orderlist_
+
+def addMic(x,TIV):
+    
+     global MIC
+     MIC +=x
+     if MIC - x>TIV:
+         return 0##敲除
+     else:
+         return 1
+
+     
+    
+def simulation(orderlist,S,Rdistribute):
     X = []
-    for date in dateList:
+    for lst in orderlist:
         r = np.random.choice(Rdistribute,1)[0]
         
-        if X ==[]:
-           x = S*(1+date/1.0/lags*r)
-            
+        date = lst['determined_time']
+        if X ==[]:   
+            tempS = S
         else:
-            x = X[-1]*(1+date/1.0/lags*r)
+            tempS = X[-1]
+            
+        if lst['determined_date_rate'].__str__()=='nan':
+            ##未到厘定日，那么模拟厘定日汇率
+            
+               x = tempS*(1+date*r)
+               
+        else:
+               x = lst['determined_date_rate']
+        
         X.append(x)
+  
     return X
-    
