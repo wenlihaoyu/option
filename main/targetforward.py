@@ -100,7 +100,14 @@ def simulationSpot(S, K,orderlist, Rdistribute,R,  TIV = 0.05,times=1000):
         
         orderlist_['price'] += (S - K*np.exp(-R*orderlist_['delivery_time']))*spot
         #print orderlist_['price'].values/(i+1.0)
-    orderlist_['price'] =orderlist_['price']/1.0/times
+    sell_currency=orderlist_['sell_currency'].values[0]
+    buy_currency =orderlist_['buy_currency'].values[0]
+    code = orderlist_['currency_pair'].values[0]
+    if sell_currency+buy_currency==code:
+        
+        orderlist_['price'] =orderlist_['price']/1.0/times/K
+    else:
+        orderlist_['price'] =orderlist_['price']/1.0/times/K/K
     return orderlist_
 
 def addMic(x,TIV):

@@ -81,7 +81,9 @@ class TargetRedemptionForwards(option):
                    RE = RateExchange(code).getMax()
                    if RE is not None and RE !=[]:
                       S[code] =  RE[0].get('Close')##获取实时汇率
-               
+               if sell_currency+buy_currency!=code:
+                   BuyRate,SellRate=SellRate,BuyRate##判断卖出买入货币与汇率对的对应情况
+                   
                if spot.get(code) is None:
                    dayspot = getdayspot(code,self.mongo)
                    dayspot = datafill(dayspot)
@@ -125,7 +127,7 @@ class TargetRedemptionForwards(option):
         #orderby = "order by trade_id, delivery_date"
         Now = getNow('%Y-%m-%d')
         sql = """select %s from %s t join 
-                  (select trade_id from %s group by trade_id  having max(delivery_date)>='%s' ) b
+                  (select trade_id from %s group by trade_id  having max(delivery_date)>=date'%s' ) b
                   on t.trade_id=b.trade_id
                   order by t.trade_id, t.delivery_date
                   """%(','.join(map(lambda x:'t.'+x,colname)),
@@ -175,8 +177,8 @@ class TargetRedemptionForwards(option):
                updatelist.append({'ex_pl':lst['price']})
                wherelist.append({'trade_id':lst['trade_id'],'id':lst['id']})
           
-        print   updatelist
-        print   wherelist
+        #print   updatelist
+        #print   wherelist
         post.update(self.table,updatelist,wherelist)
         post.close()
 
