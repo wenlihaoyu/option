@@ -17,7 +17,7 @@ import pandas as pd
 import numpy as np
 
 from help.help import timedelta
-testlag = True##是否调用测试数据
+testlag = False##是否调用测试数据
 
 
 class TargetRedemptionForwards(option):
@@ -121,9 +121,21 @@ class TargetRedemptionForwards(option):
              'trp',
              'rate'
                 ]
-        wherestring = None
-        orderby = "order by trade_id, delivery_date"
-        self.data = post.select(self.table,colname,wherestring,orderby)
+        #wherestring = None
+        #orderby = "order by trade_id, delivery_date"
+        Now = getNow('%Y-%m-%d')
+        sql = """select %s from %s t join 
+                  (select trade_id from %s group by trade_id  having max(delivery_date)>='%s' ) b
+                  on t.trade_id=b.trade_id
+                  order by t.trade_id, t.delivery_date
+                  """%(','.join(map(lambda x:'t.'+x,colname)),
+                       self.table,
+                       self.table,
+                       Now
+                       )##过滤已交割完成的结构产品
+        self.data = post.view(sql,colname)
+        #self.data = post.select(self.table,colname,wherestring,orderby)
+        
         
     def  cumputeLost(self):
         """
@@ -146,15 +158,11 @@ class TargetRedemptionForwards(option):
                 
                Lost.extend(TRF)
             
-        return Lost
+        self.updateDataToPostgres(Lost)
         
+
         
-               
-           
-           
-       
-        
-    def updateDataToPostgres(self):
+    def updateDataToPostgres(self,Lost):
         """
         将计算的损益更新到数据库
         """
@@ -162,11 +170,13 @@ class TargetRedemptionForwards(option):
         post = postgersql()
         updatelist=[]
         wherelist =[]
-        for key in self.forwarddict:
-            if self.forwarddict[key] is not None:
-               updatelist.append({'ex_pl':self.forwarddict[key]})
-               wherelist.append({'trade_id':key})
+        for lst in Lost:
+            #if self.forwarddict[lst.get] is not None:
+               updatelist.append({'ex_pl':lst['price']})
+               wherelist.append({'trade_id':lst['trade_id'],'id':lst['id']})
           
+        print   updatelist
+        print   wherelist
         post.update(self.table,updatelist,wherelist)
         post.close()
 

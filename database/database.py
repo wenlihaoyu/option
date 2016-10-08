@@ -188,7 +188,19 @@ class postgersql(database):
         except:
             traceback.print_exc()
             return None
-            
+    def view(self,sql,colname):
+           cur = self.__conn.cursor()
+           if 'delete' in sql or 'drop' in sql or 'update' in sql or 'create' in sql:
+               print "发现非法关键词 delete\drop\update\create"
+               return None
+           try:
+               cur.execute(sql)
+               data = cur.fetchall()
+               cur.close()
+               return map(lambda x:dict(zip(colname,x)),data)
+           except:
+               traceback.print_exc()
+               return None    
             
     def update(self, tablename,updatelist,wherelist):
         """
