@@ -11,6 +11,7 @@ IF SUM(100*(锁定汇率-市场汇率)<0.5)，则可按照锁定汇率卖出美�
 """
 import numpy as np
 import pandas as pd
+from help.help import strTodate
 def TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,logs,Now,TIV):
     """
     spotList:汇率时间序列图
@@ -40,6 +41,9 @@ def TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,logs,Now,TIV
     orderlist = pd.DataFrame(orderlist)
     orderlist = orderlist.sort_values('delivery_date')
     ## 计算当前时间到未来各厘定日及交割日的时间
+    orderlist['delivery_date'] = orderlist['delivery_date'].map(lambda  x:strTodate(x.strftime('%Y-%m-%d %H:%M:%S'),'%Y-%m-%d %H:%M:%S'))
+    orderlist['determined_date'] = orderlist['determined_date'].map(lambda  x:strTodate(x.strftime('%Y-%m-%d %H:%M:%S'),'%Y-%m-%d %H:%M:%S'))
+
     orderlist['delivery_time'] =  (orderlist['delivery_date'] -Now).dt.total_seconds()/24.0/60/60
     determined_time = ((orderlist['determined_date'] -Now).dt.total_seconds()/24.0/60/60)
 
@@ -47,16 +51,22 @@ def TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,logs,Now,TIV
     orderlist['determined_time'] = orderlist['determined_time'].diff()
     orderlist['determined_time'] = orderlist['determined_time'].fillna(determined_time[0])
     
-    MIC = 0
-    ##判断历史收益是否已达到累计收益
+    #MIC = 0
+    ##判断历史累计收益是否已达到目标收益
     CumMIC = orderlist['determined_date_rate'].map(lambda x:0 if x.__str__()=='nan' else max([K-x,0])).sum()
-    if CumMIC>=TIV:
-        return 
-    else:
-        MIC = CumMIC
-    
-    R = (SellRate - BuyRate)/360.0    
+    R = (SellRate - BuyRate)/360.0/100.0   ##两国货币拆解利率差
+    #TIV = 0.5
+    if orderlist['delivery_time'].max()<0:## 最后一次交割是否已经完成
         
+        return None#orderlist.to_dict('records')
+    elif CumMIC>=TIV :##累计收益是否达到目标收益:
+        print '当前收益为:%f, 超过目标累计收益%f'%(CumMIC,TIV)
+        orderlist_ = simulationSpot(S, K,orderlist, spotList,R,  TIV,times=1)
+        
+    else:
+       
+       orderlist_ = simulationSpot(S, K,orderlist, spotList,R,  TIV,times=1000)
+    return orderlist_.to_dict('records')
     #MIC = map(lambda x:0 if x<0 else x,orderlist['K'] - K)
     
     
@@ -81,13 +91,15 @@ def simulationSpot(S, K,orderlist, Rdistribute,R,  TIV = 0.05,times=1000):
     global MIC
     MIC = 0
     orderlist_['price'] = 0.0
+    #print S, K,R
     for i in range(times):
-        spot = simulation(temp,S,Rdistribute)
+        spot = simulation(temp,S,Rdistribute)##模拟未来厘定日的价格走势
         
-        spot = np.array(map(lambda x:addMic(max(K-x,0),TIV)*K,spot))
+        spot = np.array(map(lambda x:addMic(max(K-x,0),TIV),spot))##判断是否已达到目标收益
         MIC = 0
         
         orderlist_['price'] += (S - K*np.exp(-R*orderlist_['delivery_time']))*spot
+        #print orderlist_['price'].values/(i+1.0)
     orderlist_['price'] =orderlist_['price']/1.0/times
     return orderlist_
 

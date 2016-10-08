@@ -29,6 +29,7 @@ class TargetRedemptionForwards(option):
         option.__init__(self)
        # self.delta  =delta
         self.table = table_frs_option
+        self.Now = Now
        
         if testlag:##调用测试数据
             from test.test import getDataFromMongo
@@ -141,7 +142,11 @@ class TargetRedemptionForwards(option):
             lags      = self.trfdata[trade_id]['lags']
             TIV       = self.trfdata[trade_id]['TIV']
             TRF = TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,lags,Now,TIV)##计算损益值
-            Lost.extend(TRF)
+            if TRF is not None:
+                
+               Lost.extend(TRF)
+            
+        return Lost
         
         
                

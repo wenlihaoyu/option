@@ -147,7 +147,7 @@ class postgersql(database):
            self.__conn = None
     
 
-    def select(self,tablename,colname,wherestring):
+    def select(self,tablename,colname,wherestring,orderby=None):
         """
         tablename:表名称
         colname:字段名称
@@ -178,6 +178,8 @@ class postgersql(database):
                sql = "select %s from %s where %s"""%(colnames,tablename,wherestring)
             else:
                 sql = "select %s from %s"""%(colnames,tablename)
+            if orderby is not None:
+                sql = sql +" " + orderby
             cur.execute(sql)
             data = cur.fetchall()
             

@@ -7,6 +7,7 @@ Created on Tue Aug 23 15:09:26 2016
 from database import mongodb## mongo connect
 from help.help import getNow,strTostr,timedelta ##get current datetime
 
+
 class RateExchange(object):
     """
     获取汇率实时行情数据
@@ -20,13 +21,13 @@ class RateExchange(object):
 
     def getMax(self):
         """获取最大的实时汇率"""
-        key={'code':True}
+        '''key={'code':True}
         
         Time = strTostr(getNow('%Y-%m-%d'))
         initial ={'Close':0,'Time':Time}
         reduces = """function(doc,prev){
  
-                     if (prev.Time<doc.Time){
+                    if (prev.Time<doc.Time){
                           prev.Close = doc.Close/1.0/doc.PriceWeight;
                           prev.Time = doc.Time
                      }}"""##遍历寻找当前最大汇率值
@@ -34,8 +35,18 @@ class RateExchange(object):
         data =  self.__mongo.group('kline',key,condition,initial,reduces)
         self.__mongo.close()
         return data
+        '''
+        data = self.__mongo.select('kline_new',{'code':self.code,'type':'0'})
+        if data ==[]:
+            return []
+        else:
+           data = data[0]
+           return [{'Close':data.get('Close')/1.0/data.get('PriceWeight')}]
         
     def getdayMax(self,Time=None):
+        """
+        获取某一天汇率最大值
+        """
         key={'code':True}
         
         Time_end = strTostr(timedelta(Time,17.0/24))##当天时间下午5点
@@ -87,7 +98,8 @@ class BankRate(object):
                           prev.rate = doc.rate;
                           prev.datadate = doc.datadate
                      }}"""##遍历寻找当前最大汇率值
-        condition={'ratetype':self.ratetype,'index':self.code}      
+        ratetype ='12月'
+        condition={'ratetype':ratetype,'index':self.code}      
         
         data = self.__mongo.group('KPI',key,condition,initial,reduces)
         self.__mongo.close()

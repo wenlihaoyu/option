@@ -100,8 +100,8 @@ def getDataFromMongo(Now):
            for lst in data:
                ##获取厘定日汇率，未到立定日，以None填充
                
-               SellRate = 0.015
-               BuyRate  = 0.0322
+               SellRate = 1.5
+               BuyRate  = 3.22
                
                
                 
