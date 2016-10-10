@@ -76,12 +76,12 @@ def CollaOption(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,cur
     K = strikeRate_U
     d1_U = np.log(S/1.0/K/np.exp(-r*t))/delta/np.sqrt(t)+delta*np.sqrt(t)/2
     d2_U = d1_U- delta*np.sqrt(t)
+    ##看涨期权的价值
+    c  = S*stats.norm.cdf(d1_U) - K*np.exp(-r*t)*stats.norm.cdf(d2_U)##stats.norm.cdf正太分布累计概率
     
     K = strikeRate_L
     d1_L = np.log(S/1.0/K/np.exp(-r*t))/delta/np.sqrt(t)+delta*np.sqrt(t)/2
     d2_L = d1_L- delta*np.sqrt(t)
-    ##看涨期权的价值
-    c  = S*stats.norm.cdf(d1_U) - K*np.exp(-r*t)*stats.norm.cdf(d2_U)##stats.norm.cdf正太分布累计概率
     ##看跌期权的价值
     p  = S*(stats.norm.cdf(d1_L)-1) - K*np.exp(-r*t)*(stats.norm.cdf(d2_L)-1)##stats.norm.cdf正太分布累计概率
     

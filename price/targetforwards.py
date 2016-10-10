@@ -237,7 +237,7 @@ def datafill(spot):
     """
     def dateseris(mindate,maxdate):
         
-        date = timedelta(mindate,1)
+        date = timedelta(mindate,0)
         series = []
         while maxdate>=date:
             series.append(date)

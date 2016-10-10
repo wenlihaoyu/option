@@ -74,7 +74,7 @@ class forwards(option):
         Now = getNow('%Y-%m-%d')
   
         post = postgersql()
-        colname = ['trade_id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency','buy_currency']
+        colname = ['trade_id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency']
         wherestring = """ delivery_date>='%s'"""%Now
        
         self.data = post.select(table_knock_option,colname,wherestring)
