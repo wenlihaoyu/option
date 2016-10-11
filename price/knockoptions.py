@@ -17,7 +17,7 @@ from main.knockoption import  knockoption
 
 class knockoptions(option):
     """
-    普通外汇远期定价
+    敲出式期权
     """
 
     def __init__(self,delta=0.1):
@@ -72,7 +72,7 @@ class knockoptions(option):
             if sell_currency+buy_currency!=currency_pair:
                LockedRate = 1.0/LockedRate
                currentRate = 1.0/currentRate
-            forwarddict[lst['trade_id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,self.delta,sell_amount)
+            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,self.delta,sell_amount)
         self.forwarddict = forwarddict
         
           
@@ -85,6 +85,7 @@ class knockoptions(option):
   
         post = postgersql()
         colname = [
+                'id',
                 'trade_id',
                'currency_pair',
                'sell_currency',
@@ -104,7 +105,7 @@ class knockoptions(option):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:
-           return sell_amount*knockoption(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,delta)
+           return knockoption(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,delta)
       
         
     def updateDataToPostgres(self):
@@ -118,7 +119,7 @@ class knockoptions(option):
         for key in self.forwarddict:
             if self.forwarddict[key] is not None:
                updatelist.append({'ex_pl':self.forwarddict[key]})
-               wherelist.append({'trade_id':key})
+               wherelist.append({'id':key})
         
         post.update(self.table,updatelist,wherelist)
         post.close()

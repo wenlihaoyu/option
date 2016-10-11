@@ -6,7 +6,7 @@ forwards
 """
 from job import option
 from help.help import getNow,getRate,getcurrency,dateTostr
-from config.postgres  import  table_knock_option
+from config.postgres  import  table_comlong_term
 from database.mongodb import  RateExchange
 from database.mongodb import  BankRate
 from database.database import postgersql
@@ -19,6 +19,7 @@ class forwards(option):
 
     def __init__(self):
         option.__init__(self)
+        self.table = table_comlong_term
         self.getDataFromPostgres()##从post提取数据
         self.getDataFromMongo()##从mongo提取数据并更新损益
         self.updateDataToPostgres()##更新数据到post
@@ -63,7 +64,7 @@ class forwards(option):
             if sell_currency+buy_currency!=currency_pair:
                LockedRate = 1.0/LockedRate
                currentRate = 1.0/currentRate
-            forwarddict[lst['trade_id']] = self.cumputeLost(SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount)
+            forwarddict[lst['id']] = self.cumputeLost(SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount)
         self.forwarddict = forwarddict
             
                 
@@ -74,16 +75,16 @@ class forwards(option):
         Now = getNow('%Y-%m-%d')
   
         post = postgersql()
-        colname = ['trade_id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency']
+        colname = ['id','trade_id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency']
         wherestring = """ delivery_date>='%s'"""%Now
        
-        self.data = post.select(table_knock_option,colname,wherestring)
+        self.data = post.select(self.table ,colname,wherestring)
         
     def  cumputeLost(self,SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:
-           return sell_amount*OrdinaryForward(SellRate,BuyRate,deliverydate,LockedRate,currentRate)
+           return OrdinaryForward(SellRate,BuyRate,deliverydate,LockedRate,currentRate)
       
         
     def updateDataToPostgres(self):
@@ -97,7 +98,7 @@ class forwards(option):
         for key in self.forwarddict:
             if self.forwarddict[key] is not None:
                updatelist.append({'ex_pl':self.forwarddict[key]})
-               wherelist.append({'trade_id':key})
+               wherelist.append({'id':key})
         
-        post.update(table_knock_option,updatelist,wherelist)
+        post.update(self.table,updatelist,wherelist)
         post.close()

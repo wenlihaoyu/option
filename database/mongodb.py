@@ -5,7 +5,7 @@ Created on Tue Aug 23 15:09:26 2016
 @author: lywen
 """
 from database import mongodb## mongo connect
-from help.help import getNow,strTostr,timedelta ##get current datetime
+from help.help import getNow,strTostr ##get current datetime
 
 
 class RateExchange(object):
@@ -47,7 +47,7 @@ class RateExchange(object):
         """
         获取某一天汇率最大值
         """
-        key={'code':True}
+        '''key={'code':True}
         
         Time_end = strTostr(timedelta(Time,17.0/24))##当天时间下午5点
         Time = strTostr(Time)
@@ -61,8 +61,16 @@ class RateExchange(object):
                      }}"""##遍历寻找当前最大汇率值
         condition={'type':'0','code':self.code,'Time':{'$lt':Time_end,'$gte':Time}}             
         data =  self.__mongo.group('kline',key,condition,initial,reduces)
-        self.__mongo.close()
-        return data
+        self.__mongo.close()'''
+        Time = Time+' 00:00:00'
+        data = self.__mongo.select('kline',{'type':'5','code':self.code,'Time':Time})
+        if data ==[]:
+            return []
+        else:
+           data = data[0]
+           return data.get('High')/1.0/data.get('PriceWeight')
+        
+        return None
         
      
         

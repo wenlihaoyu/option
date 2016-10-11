@@ -6,7 +6,7 @@ Target Redemption Forward
 
 """
 from job import option
-from help.help import getNow,getRate,getcurrency,strTostr
+from help.help import getNow,getRate,getcurrency,strTodate
 from config.postgres  import  table_frs_option
 from database.mongodb import  RateExchange
 from database.mongodb import  BankRate
@@ -25,7 +25,9 @@ class TargetRedemptionForwards(option):
     目标可赎回式远期
     """
 
-    def __init__(self,Now):
+    def __init__(self):
+        Now = getNow()
+        Now = strTodate(Now,'%Y-%m-%d %H:%M:%S')
         option.__init__(self)
        # self.delta  =delta
         self.table = table_frs_option

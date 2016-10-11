@@ -49,7 +49,7 @@ class CollaOptions(option):
         for currency_pair in currency_pairs:
             RE = RateExchange(currency_pair).getMax()
             if RE is not None and RE !=[]:
-               currency_dict[currency_pair] = RE[0]['Close']
+               currency_dict[currency_pair] = RE[0]['Close']##实时汇率 
         self.currency_dict = currency_dict
         
         ##bank_rate
@@ -96,7 +96,7 @@ class CollaOptions(option):
                currentRate = 1.0/currentRate
                
                
-            forwarddict[lst['trade_id']] = self.cumputeLost(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,self.delta,sell_amount)
+            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,self.delta,sell_amount)
         self.forwarddict = forwarddict
             
                 
@@ -107,7 +107,8 @@ class CollaOptions(option):
         Now = getNow('%Y-%m-%d')
   
         post = postgersql()
-        colname = ['trade_id',
+        colname = ['id',
+                    'trade_id',
                     'currency_pair',
                     'sell_currency',
                     'buy_currency',
@@ -125,8 +126,9 @@ class CollaOptions(option):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:
-           return sell_amount*CollaOption(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,delta)
-      
+           ##return sell_amount*CollaOption(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,delta)
+           return CollaOption(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,delta)
+
         
     def updateDataToPostgres(self):
         """
@@ -139,7 +141,7 @@ class CollaOptions(option):
         for key in self.forwarddict:
             if self.forwarddict[key] is not None:
                updatelist.append({'ex_pl':self.forwarddict[key]})
-               wherelist.append({'trade_id':key})
+               wherelist.append({'id':key})
         
         post.update(self.table,updatelist,wherelist)
         post.close()

@@ -37,25 +37,25 @@ class participateforwards(option):
         for currency_pair in currency_pairs:
             RE = RateExchange(currency_pair).getMax()
             if RE is not None and RE !=[]:
-               currency_dict[currency_pair] = RE[0]['Close']
+               currency_dict[currency_pair] = RE[0]['Close']##获取最新汇率
         self.currency_dict = currency_dict
         
         ##bank_rate
         forwarddict= {}
         for lst in self.data:
-            sell_currency = lst['sell_currency']
+            sell_currency = lst['sell_currency']##卖出货币代码
             sell_currency_index = getcurrency(sell_currency)
             
-            buy_currency  = lst['buy_currency']
+            buy_currency  = lst['buy_currency']##买入货币代码
             buy_currency_index = getcurrency(buy_currency)
             
             currency_pair = lst['currency_pair']
             ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
-            SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
-            BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
+            SellRate = BankRate(sell_currency_index,ratetype).getMax()##获取卖出本币的拆借利率
+            BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的拆借利率
             sell_amount = float64(lst['sell_amount'])
             Setdate = dateTostr(lst['determined_date'])
-            SetRate = RateExchange(currency_pair).getdayMax(Setdate)##厘定日汇率
+            SetRate = RateExchange(currency_pair).getdayMax(Setdate)##获取厘定日汇率
             
             if BuyRate is not  None and BuyRate !=[]:
                 BuyRate=float(BuyRate[0]['rate'])/100.0
@@ -63,14 +63,14 @@ class participateforwards(option):
             if SellRate is not  None and SellRate !=[]:
                 SellRate=float(SellRate[0]['rate'])/100.0
                 
-            LockedRate = float(lst['rate'])
-            currentRate = currency_dict[currency_pair]
-            deliverydate = dateTostr(lst['delivery_date'])
+            LockedRate = float(lst['rate'])##锁定汇率
+            currentRate = currency_dict[currency_pair]##实时汇率
+            deliverydate = dateTostr(lst['delivery_date'])##日期转化为字符串
             
             if sell_currency+buy_currency!=currency_pair:
                LockedRate = 1.0/LockedRate
                currentRate = 1.0/currentRate
-            forwarddict[lst['trade_id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,self.delta,sell_amount)
+            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,self.delta,sell_amount)
         self.forwarddict = forwarddict
         
           
@@ -83,6 +83,7 @@ class participateforwards(option):
   
         post = postgersql()
         colname = [
+                'id',
                 'trade_id',
                'currency_pair',
                'sell_currency',
@@ -101,8 +102,8 @@ class participateforwards(option):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:
-           return sell_amount*participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta)
-      
+           ##return sell_amount*participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta)
+           return participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta)
         
     def updateDataToPostgres(self):
         """
@@ -115,7 +116,7 @@ class participateforwards(option):
         for key in self.forwarddict:
             if self.forwarddict[key] is not None:
                updatelist.append({'ex_pl':self.forwarddict[key]})
-               wherelist.append({'trade_id':key})
+               wherelist.append({'id':key})
         
         post.update(self.table,updatelist,wherelist)
         post.close()
