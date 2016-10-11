@@ -56,6 +56,7 @@ def TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,logs,Now,TIV
     CumMIC = orderlist['determined_date_rate'].map(lambda x:0 if x.__str__()=='nan' else max([K-x,0])).sum()
     R = (SellRate - BuyRate)/360.0/100.0   ##两国货币拆解利率差
     #TIV = 0.5
+    
     if orderlist['delivery_time'].max()<0:## 最后一次交割是否已经完成
         
         return None#orderlist.to_dict('records')

@@ -35,7 +35,7 @@ class SwapOptions(option):
         self.delta = delta##波动率
         self.getDataFromPostgres()
         self.getDataFromMongo()
-        #self.updateDataToPostgres()
+        self.updateDataToPostgres()
         
         
     def getDataFromMongo(self):
@@ -93,6 +93,8 @@ class SwapOptions(option):
                
                
             forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,self.delta,sell_amount,capped_exrate,trade_type)
+            if sell_currency+buy_currency !=currency_pair:
+                forwarddict[lst['id']] = forwarddict[lst['id']]/currentRate
         self.forwarddict = forwarddict
             
                 

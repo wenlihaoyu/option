@@ -43,6 +43,7 @@ class TargetRedemptionForwards(option):
             self.mongo = mongodb()
             self.getDataFromPostgres()##从post提取数据
             self.getDataFromMongo()##从mongo提取数据并更新损益
+            self.cumputeLost()
        # self.updateDataToPostgres()##更新数据到post
         
     def getDataFromMongo(self):
@@ -158,6 +159,7 @@ class TargetRedemptionForwards(option):
             lags      = self.trfdata[trade_id]['lags']
             TIV       = self.trfdata[trade_id]['TIV']
             TRF = TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,lags,Now,TIV)##计算损益值
+                       
             if TRF is not None:
                 
                Lost.extend(TRF)
@@ -174,6 +176,7 @@ class TargetRedemptionForwards(option):
         post = postgersql()
         updatelist=[]
         wherelist =[]
+        ##print Lost
         for lst in Lost:
             #if self.forwarddict[lst.get] is not None:
                updatelist.append({'ex_pl':lst['price']})

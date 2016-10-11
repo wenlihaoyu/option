@@ -86,27 +86,28 @@ def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRa
         dayseconds = 60*60*24
         ts = np.array(map(lambda x:(x - (Now if Now<=deliverydate else deliverydate)).total_seconds()/dayseconds,dates ))
         ## 支付本币利息贴现
-        checkout = np.exp(-SellRate_update*ts).sum()       
-        checkin = np.exp(-BuyRate_update*ts).sum()
+        checkout = SellRate_update*(np.exp(-SellRate_update*ts).sum())    
+        checkin = BuyRate_update*(np.exp(-BuyRate_update*ts).sum())
                       
         
         
-        
+    
     else:##一次性付息
-        checkin = np.exp(-T*BuyRate_update) 
-        checkout =np.exp(-T*SellRate_update)
+        checkin = T*BuyRate_update*np.exp(-T*BuyRate_update) 
+        checkout =T*SellRate_update*np.exp(-T*SellRate_update)
     #print Lost
+    #print trade_type, checkout,checkin,Lost
     if trade_type=='2':
         #区间式货币掉期(利率进行互换+固定补贴)
-        return  (checkin/currentRate - checkout)  +Lost
+        return  (checkin - checkout)  +Lost
     elif trade_type=='3':
          #货币掉期（利率互换）
-         return (checkin/currentRate - checkout)
+         return (checkin - checkout)
     elif trade_type=='4':
          #封顶式期权(固定补贴)
          return Lost
          
-    return  ( (checkin/currentRate - checkout)  +Lost)
+    
         
     
 def SwapOptionLost(currentRate,Now,deliverydate,SellRate_update,BuyRate_update,delta,capped_exrate):
