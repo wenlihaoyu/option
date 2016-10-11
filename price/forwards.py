@@ -62,9 +62,12 @@ class forwards(option):
             deliverydate = dateTostr(lst['delivery_date'])
             
             if sell_currency+buy_currency!=currency_pair:
-               LockedRate = 1.0/LockedRate
-               currentRate = 1.0/currentRate
+               #LockedRate = 1.0/LockedRate
+               #currentRate = 1.0/currentRate
+               BuyRate,SellRate = SellRate,BuyRate
             forwarddict[lst['id']] = self.cumputeLost(SellRate,BuyRate,deliverydate,LockedRate,currentRate,sell_amount)
+            if sell_currency+buy_currency!=currency_pair:
+                forwarddict[lst['id']] =forwarddict[lst['id']]/currentRate
         self.forwarddict = forwarddict
             
                 

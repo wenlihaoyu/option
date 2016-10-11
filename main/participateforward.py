@@ -29,28 +29,28 @@ def participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellR
         delta:汇率波动率
     """
     Now = strTodate(getNow(),'%Y-%m-%d %H:%M:%S')
-    Setdate = strTodate(Setdate+' 16:30:00','%Y-%m-%d %H:%M:%S')
-    deliverydate = strTodate(deliverydate+' 16:30:00','%Y-%m-%d %H:%M:%S')
+    Setdate = strTodate(Setdate+' 16:30:00','%Y-%m-%d %H:%M:%S')##厘定日下午16:30:00
+    deliverydate = strTodate(deliverydate+' 16:30:00','%Y-%m-%d %H:%M:%S')##交割日期为当天下午16:30:00
     SellRate = SellRate/360.0*365
-    BuyRate  = BuyRate / 360.0*365
+    BuyRate  = BuyRate/360.0*365
     T = (deliverydate - Now).total_seconds() ##交割剩余时间
     T = T/1.0/60/60/24##换算到多少天
     if T<0:
         T=0
     p=1
-    set_t = (Setdate - Now).total_seconds()/1.0/60/60/24/365
+    set_t = (Setdate - Now).total_seconds()/1.0/60/60/24/365##当前时间距离厘定日剩余的时间
     if set_t<0:
         set_t=0
    
     if Now < Setdate or SetRate is None:
         ##判断当前时间是否已过拟定日
-        S =   currentRate
-        K =   LockedRate
+        S =   currentRate##实时汇率
+        K =   LockedRate##锁定汇率
         t = T/365
         d1 = np.log(S/K /np.exp(-(SellRate -BuyRate)*set_t))/delta/np.sqrt(set_t)+ delta*np.sqrt(set_t)/2
         d2 = d1-delta*np.sqrt(set_t)
         #N1 = stats.norm.cdf(d1)  
-        N2 = stats.norm.cdf(d2)
+        N2 = stats.norm.cdf(d2)##厘定日汇率大于锁定汇率的概率
         
         ##期望成交金额 N2 + 2*(1-N2)
         p = 2 - N2

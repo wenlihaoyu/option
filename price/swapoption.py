@@ -35,7 +35,7 @@ class SwapOptions(option):
         self.delta = delta##波动率
         self.getDataFromPostgres()
         self.getDataFromMongo()
-        self.updateDataToPostgres()
+        #self.updateDataToPostgres()
         
         
     def getDataFromMongo(self):
@@ -82,16 +82,17 @@ class SwapOptions(option):
             
             currentRate = currency_dict[currency_pair] ## 实时汇率
             deliverydate = dateTostr(lst['delivery_date'])## 交割日期
-      
+            trade_type = lst['trade_type']##交易类型
             if sell_currency+buy_currency !=currency_pair:
-               LockedRate = 1.0/LockedRate
-               capped_exrate = 1.0/capped_exrate
-               if SetRate is not None:
-                  SetRate = 1.0/SetRate
-               currentRate = 1.0/currentRate
+               #LockedRate = 1.0/LockedRate
+               #capped_exrate = 1.0/capped_exrate
+               #if SetRate is not None:
+               #   SetRate = 1.0/SetRate
+               #currentRate = 1.0/currentRate
+               SellRate,BuyRate = BuyRate,SellRate
                
                
-            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,self.delta,sell_amount,capped_exrate)
+            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,self.delta,sell_amount,capped_exrate,trade_type)
         self.forwarddict = forwarddict
             
                 
@@ -114,19 +115,20 @@ class SwapOptions(option):
                    'sell_amount',
                    'exe_exrate',
                    'capped_exrate',
-                   'pay_fix_rate',
-                   'charge_fix_rate',
-                   'interest_pay_way'
+                   'pay_fix_rate',##支付固定利率
+                   'charge_fix_rate',##收取固定利率
+                   'interest_pay_way',##付息方式
+                   'trade_type'##交易类型
                    ]
         wherestring = """ delivery_date>='%s'"""%Now
        
         self.data = post.select(self.table,colname,wherestring)
         
-    def  cumputeLost(self,Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,sell_amount,capped_exrate):
+    def  cumputeLost(self,Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,sell_amount,capped_exrate,trade_type):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:
-           return SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,capped_exrate)
+           return SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,capped_exrate,trade_type)
       
         
     def updateDataToPostgres(self):

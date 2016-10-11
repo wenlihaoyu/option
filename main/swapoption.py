@@ -10,7 +10,7 @@ import numpy as np
 import datetime as dt
 from scipy import stats
 
-def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,capped_exrate):
+def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,capped_exrate,trade_type):
     """
     货币掉期
     公司将某个币种互换成另一个币种的资产或者负债
@@ -29,32 +29,34 @@ def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRa
     rateway:计息方式：按季支付、按月支付、操作时付息、到期一次性付息
     delta:波动率
     capped_exrate：封顶汇率
+    trade_type:2,3,4分别表示:区间式货币掉期(利率进行互换+固定补贴)、货币掉期（利率互换）、封顶式期权(固定补贴)
     
     """
     Now = strTodate(getNow(),'%Y-%m-%d %H:%M:%S')
-    value = OrdinaryForward(SellRate,BuyRate,deliverydate,LockedRate,currentRate)##当前时刻普通外汇的定价
+    #value = OrdinaryForward(SellRate,BuyRate,deliverydate,LockedRate,currentRate)##当前时刻普通外汇的定价
     Setdate  = strTodate(Setdate+' 16:30:00','%Y-%m-%d %H:%M:%S')##厘定日时间
     
     deliverydate = strTodate(deliverydate+' 16:30:00','%Y-%m-%d %H:%M:%S')
-    valuedate = strTodate(valuedate)
+    valuedate = strTodate(valuedate)##起息日
     T = (deliverydate - Now).total_seconds() ##交割剩余时间
-    #D = (Now-valuedate).days ##合约生效时间
     T = T/1.0/60/60/24##换算到多少天
     #yeardays = 365
     SellRate_update = SellRate/360.0##调整利率
     BuyRate_update =  BuyRate/360.0##调整利率       
-    times = (deliverydate - valuedate).days
-    ##  判断是否已过厘定日
-    if Now>=Setdate:
-        if SetRate>capped_exrate:##厘定日汇率大于封顶汇率，公司获得汇率补贴
-            Lost = (capped_exrate - LockedRate)/LockedRate
-        else:
-            Lost=0
-    else:
-        Lost = SwapOptionLost(currentRate,Now,deliverydate,SellRate_update,BuyRate_update,delta,capped_exrate)
-    
+    times = (deliverydate - valuedate).days##交割日与起息日直接间隔天数
     if T<0:
         T=0
+    ##  判断是否已过厘定日，是否获取汇率波动补贴
+    if Now>=Setdate:
+        if SetRate>capped_exrate:##厘定日汇率大于封顶汇率，公司获得补贴
+            Lost = (capped_exrate - LockedRate)/LockedRate*np.exp(-(SellRate_update-BuyRate_update)*T)##补贴比例
+        else:
+            Lost=0
+    else:##还未到厘定日，那么判断厘定日的汇率大于封顶式期权的概率，看做是以capped_exrate为交割价格的看涨欧式期权
+        Lost = SwapOptionLost(currentRate,Now,deliverydate,SellRate_update,BuyRate_update,delta,capped_exrate)
+        Lost = Lost*(capped_exrate - LockedRate)/LockedRate
+    
+    ##利率互换    
     if rateway=='按月支付':
         ##截止当前时间已支付的利息和收到的浮动利息
         ## 利息支付日期
@@ -66,7 +68,7 @@ def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRa
     
         
     if rateway in ['按季支付','按月支付']:
-        interval = int(np.ceil(times/days))
+        interval = int(np.ceil(times/days))##支付利息的次数
         
         dates = []
         for i in range(interval):
@@ -88,14 +90,23 @@ def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRa
         checkin = np.exp(-BuyRate_update*ts).sum()
                       
         
-        ##当前时间做一个期限的普通远期外汇的价值
-        ##该期限的定价：
         
         
-    else:
+    else:##一次性付息
         checkin = np.exp(-T*BuyRate_update) 
         checkout =np.exp(-T*SellRate_update)
-    return value - ( (checkin/currentRate - checkout)  +Lost)
+    #print Lost
+    if trade_type=='2':
+        #区间式货币掉期(利率进行互换+固定补贴)
+        return  (checkin/currentRate - checkout)  +Lost
+    elif trade_type=='3':
+         #货币掉期（利率互换）
+         return (checkin/currentRate - checkout)
+    elif trade_type=='4':
+         #封顶式期权(固定补贴)
+         return Lost
+         
+    return  ( (checkin/currentRate - checkout)  +Lost)
         
     
 def SwapOptionLost(currentRate,Now,deliverydate,SellRate_update,BuyRate_update,delta,capped_exrate):
@@ -118,7 +129,7 @@ def SwapOptionLost(currentRate,Now,deliverydate,SellRate_update,BuyRate_update,d
     d1 = np.log(S/1.0/K/np.exp(-r*t))/delta/np.sqrt(t)+delta*np.sqrt(t)/2
     d2= d1- delta*np.sqrt(t)
     
-   
+    
     ##看涨期权的价值
     #c  = S*stats.norm.cdf(d1) - K*np.exp(-r*t)*stats.norm.cdf(d2)##stats.norm.cdf正太分布累计概率
     return  np.exp(-r*t)*stats.norm.cdf(d2)

@@ -86,5 +86,5 @@ def CollaOption(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,cur
     p  = S*(stats.norm.cdf(d1_L)-1) - K*np.exp(-r*t)*(stats.norm.cdf(d2_L)-1)##stats.norm.cdf正太分布累计概率
     
 
-    return (c+p)/strikeRate_U
+    return (c+p)/currentRate
     

@@ -91,12 +91,15 @@ class CollaOptions(option):
             deliverydate = dateTostr(lst['delivery_date'])
             
             if sell_currency+buy_currency!=currency_pair:
-               strikeLowerRate = 1.0/strikeLowerRate
-               strikeUpperRate = 1.0/strikeUpperRate
-               currentRate = 1.0/currentRate
+               #strikeLowerRate = 1.0/strikeLowerRate
+               #strikeUpperRate = 1.0/strikeUpperRate
+               #currentRate = 1.0/currentRate
+               BuyRate,SellRate = SellRate,BuyRate
                
                
             forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,self.delta,sell_amount)
+            if sell_currency+buy_currency!=currency_pair:
+                forwarddict[lst['id']] =forwarddict[lst['id']]/currentRate
         self.forwarddict = forwarddict
             
                 

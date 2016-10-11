@@ -68,9 +68,12 @@ class participateforwards(option):
             deliverydate = dateTostr(lst['delivery_date'])##日期转化为字符串
             
             if sell_currency+buy_currency!=currency_pair:
-               LockedRate = 1.0/LockedRate
-               currentRate = 1.0/currentRate
+               #LockedRate = 1.0/LockedRate
+               #currentRate = 1.0/currentRate
+               BuyRate,SellRate = SellRate,BuyRate
             forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,self.delta,sell_amount)
+            if sell_currency+buy_currency!=currency_pair:
+                forwarddict[lst['id']] = forwarddict[lst['id']]/currentRate
         self.forwarddict = forwarddict
         
           
