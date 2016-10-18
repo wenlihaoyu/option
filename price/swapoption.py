@@ -54,19 +54,24 @@ class SwapOptions(option):
         ##bank_rate
         forwarddict= {}
         for lst in self.data:
-            sell_currency = lst['sell_currency']
+            
+            #sell_currency = lst['sell_currency']
+            sell_currency = lst['currency_pair'][:3]
             #sell_currency_index = getcurrency(sell_currency)##拆借利率类型
             
-            buy_currency  = lst['buy_currency']
+            #buy_currency  = lst['buy_currency']
+            buy_currency = lst['currency_pair'][3:]
             #buy_currency_index = getcurrency(buy_currency)##拆借利率类型
             
             currency_pair = lst['currency_pair']
+           
             #ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)##拆借利率期限
             #SellRate = BankRate(sell_currency_index, ratetype).getMax()##卖出本币的利率
             #BuyRate  = BankRate(buy_currency_index, ratetype).getMax()##买入货币的利率
             SellRate = float64(lst['pay_fix_rate']) ##支付固定利率
             BuyRate  = float64(lst['charge_fix_rate'])##收取浮动利息
             sell_amount = float64(lst['sell_amount'])##卖出金额
+            buy_amount = float64(lst['buy_amount'])##买入金额
             LockedRate = float64(lst['exe_exrate'])##执行汇率
             capped_exrate  = None if lst['capped_exrate'] is None else float64(lst['capped_exrate']) ##封顶汇率
             
@@ -83,18 +88,30 @@ class SwapOptions(option):
             currentRate = currency_dict[currency_pair] ## 实时汇率
             deliverydate = dateTostr(lst['delivery_date'])## 交割日期
             trade_type = lst['trade_type']##交易类型
-            if sell_currency+buy_currency !=currency_pair:
+            #if sell_currency+buy_currency !=currency_pair:
                #LockedRate = 1.0/LockedRate
                #capped_exrate = 1.0/capped_exrate
                #if SetRate is not None:
                #   SetRate = 1.0/SetRate
                #currentRate = 1.0/currentRate
-               SellRate,BuyRate = BuyRate,SellRate
+            #   SellRate,BuyRate = BuyRate,SellRate
                
                
-            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,self.delta,sell_amount,capped_exrate,trade_type)
-            if sell_currency+buy_currency !=currency_pair:
-                forwarddict[lst['id']] = forwarddict[lst['id']]/currentRate
+            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,self.delta,capped_exrate,trade_type)
+            #if sell_currency+buy_currency !=currency_pair:
+            #    forwarddict[lst['id']] = forwarddict[lst['id']]/currentRate
+            if forwarddict[lst['id']] is None:
+                forwarddict[lst['id']] =0.0
+            if lst['sell_currency']=='CNY':
+                local_currency = lst['buy_currency']
+            else:
+                local_currency = lst['sell_currency'] 
+            if sell_currency == local_currency:
+                
+                forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount
+            else:
+                forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount     
+                
         self.forwarddict = forwarddict
             
                 
@@ -115,6 +132,7 @@ class SwapOptions(option):
                    'determined_date',
                    'delivery_date',
                    'sell_amount',
+                   'buy_amount',
                    'exe_exrate',
                    'capped_exrate',
                    'pay_fix_rate',##支付固定利率
@@ -126,7 +144,7 @@ class SwapOptions(option):
        
         self.data = post.select(self.table,colname,wherestring)
         
-    def  cumputeLost(self,Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,sell_amount,capped_exrate,trade_type):
+    def  cumputeLost(self,Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,capped_exrate,trade_type):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:

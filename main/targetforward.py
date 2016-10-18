@@ -54,7 +54,7 @@ def TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,logs,Now,TIV
     #MIC = 0
     ##判断历史累计收益是否已达到目标收益
     CumMIC = orderlist['determined_date_rate'].map(lambda x:0 if x.__str__()=='nan' else max([K-x,0])).sum()
-    R = (SellRate - BuyRate)/360.0/100.0   ##两国货币拆解利率差
+    R = (BuyRate - SellRate  )/360.0/100.0   ##两国货币拆解利率差
     #TIV = 0.5
     
     if orderlist['delivery_time'].max()<0:## 最后一次交割是否已经完成
@@ -101,14 +101,13 @@ def simulationSpot(S, K,orderlist, Rdistribute,R,  TIV = 0.05,times=1000):
         
         orderlist_['price'] += (S - K*np.exp(-R*orderlist_['delivery_time']))*spot
         #print orderlist_['price'].values/(i+1.0)
-    sell_currency=orderlist_['sell_currency'].values[0]
-    buy_currency =orderlist_['buy_currency'].values[0]
-    code = orderlist_['currency_pair'].values[0]
-    if sell_currency+buy_currency==code:
+    #sell_currency=orderlist_['sell_currency'].values[0]
+    #buy_currency =orderlist_['buy_currency'].values[0]
+    #code = orderlist_['currency_pair'].values[0]
+    #if sell_currency+buy_currency==code:
         
-        orderlist_['price'] =orderlist_['price']/1.0/times/K
-    else:
-        orderlist_['price'] =orderlist_['price']/1.0/times/K/K
+    orderlist_['price'] =orderlist_['price']/S
+    
     return orderlist_
 
 def addMic(x,TIV):

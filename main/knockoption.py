@@ -45,7 +45,7 @@ def knockoption(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,S
         S =   currentRate
         K =   kncockRate
         t = T/365
-        d1 = np.log(S/K /np.exp(-(SellRate -BuyRate)*set_t))/delta/np.sqrt(set_t)+ delta*np.sqrt(set_t)/2
+        d1 = np.log(S/K /np.exp(-(BuyRate - SellRate )*set_t))/delta/np.sqrt(set_t)+ delta*np.sqrt(set_t)/2
         d2 = d1-delta*np.sqrt(set_t)
         N1 = stats.norm.cdf(d1)  
         N2 = stats.norm.cdf(d2)
@@ -59,7 +59,7 @@ def knockoption(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,S
             p = 0
             
     ##定价 p*
-    S0 = LockedRate* np.exp((BuyRate -SellRate) *t)
+    S0 = LockedRate* np.exp(-(BuyRate -SellRate) *t)
     St = currentRate
     return p*(St - S0)/currentRate        
     

@@ -55,10 +55,13 @@ class CollaOptions(option):
         ##bank_rate
         forwarddict= {}
         for lst in self.data:
-            sell_currency = lst['sell_currency']
+            
+            #sell_currency = lst['sell_currency']
+            sell_currency = lst['currency_pair'][:3]
             sell_currency_index = getcurrency(sell_currency)##拆借利率类型
             
-            buy_currency  = lst['buy_currency']
+            #buy_currency  = lst['buy_currency']
+            buy_currency  =  lst['currency_pair'][3:]
             buy_currency_index = getcurrency(buy_currency)##拆借利率类型
             
             currency_pair = lst['currency_pair']
@@ -66,6 +69,7 @@ class CollaOptions(option):
             SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
             BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
             sell_amount = float64(lst['sell_amount'])
+            buy_amount  = float64(lst['buy_amount'])
             ##获取厘定日的汇率，如果还未到厘定日，那么汇率返回None
             Setdate = dateTostr(lst['determined_date'])##厘定日
             SetRate = RateExchange(currency_pair).getdayMax(Setdate)##厘定日汇率
@@ -90,16 +94,27 @@ class CollaOptions(option):
             currentRate = currency_dict[currency_pair]
             deliverydate = dateTostr(lst['delivery_date'])
             
-            if sell_currency+buy_currency!=currency_pair:
+            #if sell_currency+buy_currency!=currency_pair:
                #strikeLowerRate = 1.0/strikeLowerRate
                #strikeUpperRate = 1.0/strikeUpperRate
                #currentRate = 1.0/currentRate
-               BuyRate,SellRate = SellRate,BuyRate
+            #   BuyRate,SellRate = SellRate,BuyRate
                
                
-            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,self.delta,sell_amount)
-            if sell_currency+buy_currency!=currency_pair:
-                forwarddict[lst['id']] =forwarddict[lst['id']]/currentRate
+            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,self.delta)
+            #if sell_currency+buy_currency!=currency_pair:
+                #forwarddict[lst['id']] =forwarddict[lst['id']]/currentRate
+            if forwarddict[lst['id']] is None:
+                forwarddict[lst['id']] =0.0
+            if lst['sell_currency']=='CNY':
+                local_currency = lst['buy_currency']
+            else:
+                local_currency = lst['sell_currency'] 
+            if sell_currency == local_currency:
+                
+                forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount
+            else:
+                forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount    
         self.forwarddict = forwarddict
             
                 
@@ -116,6 +131,7 @@ class CollaOptions(option):
                     'sell_currency',
                     'buy_currency',
                     'sell_amount',
+                    'buy_amount',
                     'trade_date',
                     'determined_date',
                     'delivery_date',
@@ -125,7 +141,7 @@ class CollaOptions(option):
        
         self.data = post.select(self.table,colname,wherestring)
         
-    def  cumputeLost(self,Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,delta,sell_amount):
+    def  cumputeLost(self,Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,delta):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:

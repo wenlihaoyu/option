@@ -38,6 +38,6 @@ def OrdinaryForward(SellRate,BuyRate,deliverydate,LockedRate,currentRate):
     
     SellRate_update = SellRate/360.0##调整利率
     BuyRate_update =  BuyRate/360.0##调整利率
-    S0 = LockedRate* np.exp((BuyRate_update -SellRate_update) *T)
+    S0 = LockedRate* np.exp(-(BuyRate_update - SellRate_update  ) *T)
     St = currentRate
-    return (St - S0)/currentRate
+    return (St - S0)/currentRate##一单位卖出货币损益比例

@@ -49,7 +49,7 @@ def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRa
     ##  判断是否已过厘定日，是否获取汇率波动补贴
     if Now>=Setdate:
         if SetRate>capped_exrate:##厘定日汇率大于封顶汇率，公司获得补贴
-            Lost = (capped_exrate - LockedRate)/LockedRate*np.exp(-(SellRate_update-BuyRate_update)*T)##补贴比例
+            Lost = (capped_exrate - LockedRate)/LockedRate*np.exp(-(BuyRate_update - SellRate_update)*T)##补贴比例
         else:
             Lost=0
     else:##还未到厘定日，那么判断厘定日的汇率大于封顶式期权的概率，看做是以capped_exrate为交割价格的看涨欧式期权
@@ -124,7 +124,7 @@ def SwapOptionLost(currentRate,Now,deliverydate,SellRate_update,BuyRate_update,d
     
     #SellRate_update = SellRate/360.0*yeardays##调整利率
     #BuyRate_update =  BuyRate/360.0*yeardays##调整利率
-    r = (SellRate_update-BuyRate_update)
+    r = (BuyRate_update - SellRate_update)
     t = T/1.0
     K = capped_exrate
     d1 = np.log(S/1.0/K/np.exp(-r*t))/delta/np.sqrt(t)+delta*np.sqrt(t)/2

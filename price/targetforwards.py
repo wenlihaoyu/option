@@ -58,15 +58,16 @@ class TargetRedemptionForwards(option):
            trfdata = {}
            for lst in self.data:
                ##获取厘定日汇率，未到立定日，以None填充
+               
                code = lst.get('currency_pair')
                date = lst.get('determined_date').strftime('%Y-%m-%d')
                determined_date_rate = getkline(code,date,self.mongo)##获取厘定日汇率
                lst.update({'determined_date_rate':determined_date_rate})
-               
-               sell_currency = lst['sell_currency']
+               sell_currency = lst['currency_pair'][:3]##卖出货币代码
                sell_currency_index = getcurrency(sell_currency)
-            
-               buy_currency  = lst['buy_currency']
+                
+               buy_currency = lst['currency_pair'][3:]##买入货币代码
+                
                buy_currency_index = getcurrency(buy_currency)
                ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
                SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
@@ -84,13 +85,26 @@ class TargetRedemptionForwards(option):
                    RE = RateExchange(code).getMax()
                    if RE is not None and RE !=[]:
                       S[code] =  RE[0].get('Close')##获取实时汇率
-               if sell_currency+buy_currency!=code:
-                   BuyRate,SellRate=SellRate,BuyRate##判断卖出买入货币与汇率对的对应情况
+               #if sell_currency+buy_currency!=code:
+               #    BuyRate,SellRate=SellRate,BuyRate##判断卖出买入货币与汇率对的对应情况
                    
                if spot.get(code) is None:
                    dayspot = getdayspot(code,self.mongo)
                    dayspot = datafill(dayspot)
                    spot[code] = dayspot
+               
+               sell_amount = np.float64(lst['sell_amount'])
+               buy_amount = np.float64(lst['buy_amount'])
+               
+               if lst['sell_currency']=='CNY':
+                     local_currency = lst['buy_currency']
+               else:
+                     local_currency = lst['sell_currency'] 
+               if sell_currency == local_currency:
+                
+                      amount = sell_amount
+               else:
+                      amount = buy_amount 
                 
                if trfdata.get(lst['trade_id']) is None:
                    lags = getLags(self.data,lst['trade_id'])
@@ -103,6 +117,7 @@ class TargetRedemptionForwards(option):
                                                  'TIV':float(lst.get('trp')),##目标收益
                                                  'lags':lags,##每期时间间隔
                                                  'Now':self.Now,##损益计算时间
+                                                 'amount':amount,##本金
                                                  }
                trfdata[lst['trade_id']]['orderlist'].append(lst)
         self.trfdata = trfdata
@@ -120,6 +135,7 @@ class TargetRedemptionForwards(option):
              'sell_currency',
              'buy_currency',
              'sell_amount',
+             'buy_amount',
              'trade_date',
              'determined_date',
              'delivery_date',
@@ -158,8 +174,11 @@ class TargetRedemptionForwards(option):
             
             lags      = self.trfdata[trade_id]['lags']
             TIV       = self.trfdata[trade_id]['TIV']
+            amount    = self.trfdata[trade_id]['amount']
             TRF = TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,lags,Now,TIV)##计算损益值
-                       
+            for lst in   TRF:
+                lst['price'] = lst['price']*amount
+                
             if TRF is not None:
                 
                Lost.extend(TRF)

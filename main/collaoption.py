@@ -71,7 +71,7 @@ def CollaOption(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,cur
     yeardays = 365
     SellRate_update = SellRate/360.0*yeardays##调整利率
     BuyRate_update =  BuyRate/360.0*yeardays##调整利率
-    r = (SellRate_update-BuyRate_update)
+    r = -(SellRate_update-BuyRate_update)
     t = T/1.0/yeardays
     K = strikeRate_U
     d1_U = np.log(S/1.0/K/np.exp(-r*t))/delta/np.sqrt(t)+delta*np.sqrt(t)/2
