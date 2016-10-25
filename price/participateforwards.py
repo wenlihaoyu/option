@@ -24,6 +24,7 @@ class participateforwards(option):
         self.table = table_participate_forward
         self.delta  =delta
         self.getDataFromPostgres()##从post提取数据
+        print '期权类型','ID','货币对','成交日期','交割日','损益'
         self.getDataFromMongo()##从mongo提取数据并更新损益
         self.updateDataToPostgres()##更新数据到post
         
@@ -69,26 +70,18 @@ class participateforwards(option):
             LockedRate = float(lst['rate'])##锁定汇率
             currentRate = currency_dict[currency_pair]##实时汇率
             deliverydate = dateTostr(lst['delivery_date'])##日期转化为字符串
-            
-            #if sell_currency+buy_currency!=currency_pair:
-               #LockedRate = 1.0/LockedRate
-               #currentRate = 1.0/currentRate
-            #   BuyRate,SellRate = SellRate,BuyRate
-            
+            print 'participateforwards',lst['id'],currency_pair,dateTostr(lst['trade_date']),deliverydate,
             forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,self.delta)
-            #if sell_currency+buy_currency!=currency_pair:
-            #    forwarddict[lst['id']] = forwarddict[lst['id']]/currentRate
-            if forwarddict[lst['id']] is None:
-                forwarddict[lst['id']] =0.0
-            if lst['sell_currency']=='CNY':
-                local_currency = lst['buy_currency']
-            else:
-                local_currency = lst['sell_currency'] 
-            if sell_currency == local_currency:
+            print forwarddict[lst['id']]
+            print '\n'
+            if forwarddict[lst['id']] is not None:
                 
-                forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount
-            else:
-                forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount 
+            
+                if lst['sell_currency']=='CNY' or lst['sell_currency']=='CNH':
+                    
+                    forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount
+                else:
+                    forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount 
                 
         self.forwarddict = forwarddict
         

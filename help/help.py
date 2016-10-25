@@ -122,10 +122,9 @@ def getcurrency(code):
     """
     根据货币代码回去对应的拆借利率名称
     """        
-    if code=='CNY':
+    if code=='CNY' or code=='CNH':
         return "Shibor人民币"
-        
-        
+
     elif code=='USD':
         return "Libor美元"
         
@@ -136,14 +135,78 @@ def getcurrency(code):
         return "Libor日元"
         
     elif code=='EUR':
-        
         return "Euribor欧元"
-    
-        
+            
     elif code=='AUD':
         return '澳大利亚元'
     
     elif code=='CAD':
         return '加拿大元'
         
+    elif code=='JPY':
+        return 'Libor日元'
+    
+def interestway(interest_pay_way,charge_float_libor):
+    """
+    interest_pay_way:利息支付方式
+    charge_float_libor:支付浮动利率方式
+    """       
+    if interest_pay_way is None:
+        return None
+    
+    elif interest_pay_way=='按月支付':
+        return '1月'
+    elif interest_pay_way=='按季支付':
+        return '3月'
+    elif interest_pay_way=='到期一次付息' or interest_pay_way=='提前支付'  :
+        if charge_float_libor is None:
+            return None
+        elif charge_float_libor.lower()=='1mlibor':
+            return '1月'
+        elif charge_float_libor.lower()=='3mlibor':
+            return '3月'
+    
+    return None
+    
+from database.mongodb import BankRate
+def getbankrate(currency,valuedate,deliverdate,interest_pay_way,charge_float_libor):
+    """
+    currency:货币代码
+    valuedate:起息日期
+    deliverdate:成交日期
+    interest_pay_way:利息支付方式
+    """
+    currencyIndex =getcurrency(currency)
+    if interest_pay_way=='按月支付':
+        days = 30
+    elif interest_pay_way=='按季支付':
+        days = 90
+        
+    Now = getNow('%Y-%m-%d')
+    t = valuedate
+    ratetype = interestway(interest_pay_way, charge_float_libor)
+    ##确定付息时间
+    dateDict = {}
+    while t<=deliverdate:
+          t = timedelta(t,days)
+          if timedelta(t,-days)> Now:##未来拆借利率取当前时间最新的拆借利率
+             r = dateDict.get(timedelta(t,-days))
+          else:
+              
+              br =  BankRate(code = currencyIndex, ratetype=ratetype)
+              if t>deliverdate:
+                  r  = br.getday(deliverdate)
+                  #dateDict[deliverdate] = br.getday(deliverdate)
+             
+              else:
+                  r  = br.getday(t)
+                  #dateDict[t] = br.getday(t)
+          dateDict[deliverdate if t>deliverdate else t] = r 
+    return dateDict
+          
+          
+             
+          
+    
+          
      

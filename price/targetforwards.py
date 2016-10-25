@@ -43,6 +43,7 @@ class TargetRedemptionForwards(option):
             self.mongo = mongodb()
             self.getDataFromPostgres()##从post提取数据
             self.getDataFromMongo()##从mongo提取数据并更新损益
+            #print '期权类型','ID','货币对','成交日期','交割日','损益'
             self.cumputeLost()
        # self.updateDataToPostgres()##更新数据到post
         
@@ -96,15 +97,10 @@ class TargetRedemptionForwards(option):
                sell_amount = np.float64(lst['sell_amount'])
                buy_amount = np.float64(lst['buy_amount'])
                
-               if lst['sell_currency']=='CNY':
-                     local_currency = lst['buy_currency']
+               if lst['sell_currency']=='CNY' or lst['sell_currency']=='CNH':
+                     amount = buy_amount
                else:
-                     local_currency = lst['sell_currency'] 
-               if sell_currency == local_currency:
-                
-                      amount = sell_amount
-               else:
-                      amount = buy_amount 
+                      amount = sell_amount 
                 
                if trfdata.get(lst['trade_id']) is None:
                    lags = getLags(self.data,lst['trade_id'])
@@ -175,9 +171,10 @@ class TargetRedemptionForwards(option):
             lags      = self.trfdata[trade_id]['lags']
             TIV       = self.trfdata[trade_id]['TIV']
             amount    = self.trfdata[trade_id]['amount']
+            #print 'knockoptions',lst['id'],currency_pair,dateTostr(lst['trade_date']),deliverydate,
             TRF = TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,lags,Now,TIV)##计算损益值
             for lst in   TRF:
-                lst['price'] = lst['price']*amount
+                lst['price'] = (lst['price']*amount) if lst['price'] is not None else lst['price']
                 
             if TRF is not None:
                 

@@ -52,8 +52,9 @@ def participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellR
         #N1 = stats.norm.cdf(d1)  
         N2 = stats.norm.cdf(d2)##厘定日汇率大于锁定汇率的概率
         
-        ##期望成交金额 N2 + 2*(1-N2)
-        p = 2 - N2
+        ##期望成交金额 2*N2 + (1-N2)
+        #p = 2 - N2
+        p = N2+1
         
     else:
         if SetRate<=LockedRate:

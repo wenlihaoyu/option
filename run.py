@@ -22,4 +22,5 @@ if '__main__'==__name__:
     #fd = participateforwards(0.1)
     for items in [participateforwards,CollaOptions,knockoptions,forwards,SwapOptions,TargetRedemptionForwards]:
         items()
+        #TargetRedemptionForwards()
     

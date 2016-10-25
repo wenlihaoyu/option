@@ -21,13 +21,15 @@ class forwards(option):
         option.__init__(self)
         self.table = table_comlong_term
         self.getDataFromPostgres()##从post提取数据
+        print '期权类型','ID','货币对','成交日期','交割日','损益'
+
         self.getDataFromMongo()##从mongo提取数据并更新损益
         self.updateDataToPostgres()##更新数据到post
         
     def getDataFromMongo(self):
         """
         from mongo get the currency_pairs and bank_rate
-         #卖出币种如果是人民币，那么买入币种是本金，否则就是卖出币种
+         #卖出币种如果是人民币(CNY/CNH)，那么买入币种是本金，否则就是卖出币种
         """
         ## currency_pairs
         currency_pairs = list(set(map(lambda x:x['currency_pair'],self.data)))
@@ -67,22 +69,18 @@ class forwards(option):
             currentRate = currency_dict[currency_pair]
             deliverydate = dateTostr(lst['delivery_date'])
             
-            #if sell_currency+buy_currency!=currency_pair:
-               #LockedRate = 1.0/LockedRate
-               #currentRate = 1.0/currentRate
-             #  BuyRate,SellRate = SellRate,BuyRate
            
+            print 'forwards',lst['id'],currency_pair,dateTostr(lst['trade_date']),deliverydate,
             forwarddict[lst['id']] = self.cumputeLost(SellRate,BuyRate,deliverydate,LockedRate,currentRate)
              #卖出币种如果是人民币，那么买入币种是本金，否则就是卖出币种            
-            if lst['sell_currency']=='CNY':
-                local_currency = lst['buy_currency']
-            else:
-                local_currency = lst['sell_currency'] 
-            if sell_currency == local_currency:
-                
-                forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount
-            else:
-                forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount
+            print forwarddict[lst['id']]
+            print '\n'
+            if forwarddict[lst['id']] is not None:
+                if lst['sell_currency']=='CNY' or lst['sell_currency']=='CNH':
+                    
+                    forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount 
+                else:
+                    forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount
             
             
             #if sell_currency+buy_currency!=currency_pair:

@@ -6,7 +6,7 @@ Created on Tue Aug 23 15:09:26 2016
 """
 from database import mongodb## mongo connect
 from help.help import getNow,strTostr ##get current datetime
-
+from help.help import timedelta
 
 class RateExchange(object):
     """
@@ -36,6 +36,7 @@ class RateExchange(object):
         self.__mongo.close()
         return data
         '''
+        
         data = self.__mongo.select('kline_new',{'code':self.code,'type':'0'})
         if data ==[]:
             return []
@@ -88,7 +89,9 @@ class BankRate(object):
         """
         
         self.__mongo = mongodb()
+        
         self.code = code
+        
         self.ratetype = ratetype
         
         
@@ -107,9 +110,36 @@ class BankRate(object):
                           prev.datadate = doc.datadate
                      }}"""##遍历寻找当前最大汇率值
         ratetype ='12月'
+        if self.code=='澳大利亚元':
+            return [{'rate':1.5}]
         condition={'ratetype':ratetype,'index':self.code}      
         
         data = self.__mongo.group('KPI',key,condition,initial,reduces)
         self.__mongo.close()
         return data
+        
+    def getday(self,Time=None):
+        """
+        获取某一天的拆借利率值
+        """
+        
+        
+        delta = 0
+        while delta<100:##查找最近100天的拆借利率，如果找不到就以0填充
+             data = self.__mongo.select('KPI',{'index':self.code,'datadate':Time,'ratetype':self.ratetype})
+             if data !=[]:
+                 data = data[0]
+                 try:
+                    rate = float(data['rate'])
+                    self.__mongo.close()
+                    return rate
+                 except:
+                     return 0.0
+                     
+             Time = timedelta(Time,-1)
+             #print Time
+             delta+=1
+        #print '查找不到所需数据，那么其拆借利率以0填充'
+        self.__mongo.close()     
+        return 0.0
         

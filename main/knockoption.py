@@ -49,14 +49,14 @@ def knockoption(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,S
         d2 = d1-delta*np.sqrt(set_t)
         N1 = stats.norm.cdf(d1)  
         N2 = stats.norm.cdf(d2)
-        ##期望成交金额 N2 + 2*(1-N2)
-        p = 1 - N2
+        
+        p = 1 - N2##未敲除的概率
         
     else:
-        if SetRate>kncockRate:
-            p = 1
-        else:
+        if SetRate>kncockRate:##判断厘定日汇率大于敲出汇率，那么就敲出
             p = 0
+        else:
+            p = 1
             
     ##定价 p*
     S0 = LockedRate* np.exp(-(BuyRate -SellRate) *t)

@@ -6,13 +6,13 @@ swapoption 定价
 """
 
 from job import option
-from help.help import getNow,dateTostr
+from help.help import getNow,dateTostr,getcurrency,getbankrate
 from config.postgres   import  table_swaps_option##table name
 from database.mongodb  import  RateExchange
-#from database.mongodb  import  BankRate
+from database.mongodb  import  BankRate
 from database.database import postgersql
-from numpy import float64
-
+from numpy import float64,array
+from help.help import interestway ##利息支付方式
 
 from main.swapoption  import SwapOption
 class SwapOptions(option):
@@ -34,6 +34,7 @@ class SwapOptions(option):
         self.table = table_swaps_option
         self.delta = delta##波动率
         self.getDataFromPostgres()
+        print '期权类型','ID','货币对','计息方式', '交易类型','起息日','交割日','支付固定利率比例','收取浮动利率比例','获得固定补贴比例','损益'
         self.getDataFromMongo()
         self.updateDataToPostgres()
         
@@ -45,6 +46,7 @@ class SwapOptions(option):
         ## currency_pairs
         currency_pairs = list(set(map(lambda x:x['currency_pair'],self.data)))
         currency_dict = {}
+        ## 获取最新的实时汇率
         for currency_pair in currency_pairs:
             RE = RateExchange(currency_pair).getMax()
             if RE is not None and RE !=[]:
@@ -55,62 +57,86 @@ class SwapOptions(option):
         forwarddict= {}
         for lst in self.data:
             
-            #sell_currency = lst['sell_currency']
-            sell_currency = lst['currency_pair'][:3]
-            #sell_currency_index = getcurrency(sell_currency)##拆借利率类型
+            ##交易本币与外币
+            ##支付固定利率
+            #print '计算订单{}\n'.format(lst)
+            payFixRate = None if lst['pay_fix_rate'] is None else float64(lst['pay_fix_rate']) ##支付固定利率
+            chargeFixRate  =  None if lst['charge_fix_rate'] is None else  float64(lst['charge_fix_rate'])##收取浮动利息固定部分
+            value_date = dateTostr(lst['value_date'])
+            delivery_date = dateTostr(lst['delivery_date'])
+            if lst['interest_pay_way'] == '到期一次付息':
+                br = BankRate(lst['buy_currency'],interestway(lst['interest_pay_way'],lst['charge_float_libor']))
+                
+                date = {dateTostr(lst['delivery_date']):br.getday(delivery_date)}
+            elif lst['interest_pay_way']== '提前支付' or lst['trade_type']=='4':
+                br = BankRate(lst['buy_currency'],interestway(lst['interest_pay_way'],lst['charge_float_libor']))
+                
+                date = {dateTostr(lst['delivery_date']):br.getday(value_date)}
+            else:
+                date = getbankrate(lst['buy_currency'],value_date,delivery_date,lst['interest_pay_way'],lst['charge_float_libor'])
+            #payFixRateDict = {}              
+            if  chargeFixRate is not None:
+                for t in date:
+                    date[t] = date[t]/100.0+chargeFixRate##货币浮动利率及支付利息时间
+                   
+            Fix = array(sorted(date.items(),key=lambda x:x[0]))
+            FixDate = Fix[:,0]
+            FixRate =  Fix[:,1][:]
+            FixRate = FixRate.astype(float64)
+            Rate = (FixDate,payFixRate,FixRate)##利息支付日期，支付卖出货币利息，收取浮动利率利息
             
-            #buy_currency  = lst['buy_currency']
-            buy_currency = lst['currency_pair'][3:]
-            #buy_currency_index = getcurrency(buy_currency)##拆借利率类型
             
+       
             currency_pair = lst['currency_pair']
-           
-            #ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)##拆借利率期限
-            #SellRate = BankRate(sell_currency_index, ratetype).getMax()##卖出本币的利率
-            #BuyRate  = BankRate(buy_currency_index, ratetype).getMax()##买入货币的利率
-            SellRate = float64(lst['pay_fix_rate']) ##支付固定利率
-            BuyRate  = float64(lst['charge_fix_rate'])##收取浮动利息
-            sell_amount = float64(lst['sell_amount'])##卖出金额
-            buy_amount = float64(lst['buy_amount'])##买入金额
+            
+            ##货币对之间本币与外币
+            sellCurrency  = currency_pair[:3]
+            buyCurrency  = currency_pair[3:]
+            buyIndex = getcurrency(buyCurrency)##拆借利率类型
+            sellIndex = getcurrency(sellCurrency)##拆借利率类型
+            SellRate = BankRate(sellIndex, '12月').getMax()##卖出本币的利率
+            if SellRate!=[]:
+                SellRate = SellRate[0]['rate']/100.0
+            else:
+                SellRate=0.0
+            
+                
+            BuyRate  = BankRate(buyIndex, '12月').getMax()##买入货币的利率
+            if BuyRate!=[]:
+                BuyRate = BuyRate[0]['rate']/100.0
+            else:
+                BuyRate=0.0
+                
             LockedRate = float64(lst['exe_exrate'])##执行汇率
             capped_exrate  = None if lst['capped_exrate'] is None else float64(lst['capped_exrate']) ##封顶汇率
-            
-            rateway = lst['interest_pay_way']##付息方式
+            ##获取厘定日汇率
             ##获取厘定日的汇率，如果还未到厘定日，那么汇率返回None
             Setdate = dateTostr(lst['determined_date'])##厘定日
             SetRate = RateExchange(currency_pair).getdayMax(Setdate)##厘定日汇率
             
             if SetRate ==[]:
                 SetRate = None## 还未到厘定日
-                
-            valuedate  = dateTostr(lst['value_date'])##起息日
             
             currentRate = currency_dict[currency_pair] ## 实时汇率
-            deliverydate = dateTostr(lst['delivery_date'])## 交割日期
+            #deliverydate = dateTostr(lst['delivery_date'])## 交割日期
             trade_type = lst['trade_type']##交易类型
-            #if sell_currency+buy_currency !=currency_pair:
-               #LockedRate = 1.0/LockedRate
-               #capped_exrate = 1.0/capped_exrate
-               #if SetRate is not None:
-               #   SetRate = 1.0/SetRate
-               #currentRate = 1.0/currentRate
-            #   SellRate,BuyRate = BuyRate,SellRate
-               
-               
-            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,self.delta,capped_exrate,trade_type)
+            rateway = lst['interest_pay_way']##利息支付方式
+            sell_amount  = float64(lst['sell_amount'])
+            buy_amount  = float64(lst['buy_amount'])
+            print 'SwapOptions', lst['id'],currency_pair,rateway,trade_type,value_date,delivery_date,
+            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,value_date,delivery_date,currentRate,SellRate,BuyRate,LockedRate,rateway,self.delta,capped_exrate,trade_type,Rate)
             #if sell_currency+buy_currency !=currency_pair:
             #    forwarddict[lst['id']] = forwarddict[lst['id']]/currentRate
-            if forwarddict[lst['id']] is None:
-                forwarddict[lst['id']] =0.0
-            if lst['sell_currency']=='CNY':
-                local_currency = lst['buy_currency']
-            else:
-                local_currency = lst['sell_currency'] 
-            if sell_currency == local_currency:
+            print forwarddict[lst['id']]
+            print '\n'
+            if forwarddict[lst['id']] is not  None:
                 
-                forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount
-            else:
-                forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount     
+             
+                if lst['sell_currency']=='CNY' or lst['sell_currency']=='CNH':
+                    
+                    forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount     
+                else:
+                    forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount
                 
         self.forwarddict = forwarddict
             
@@ -136,19 +162,20 @@ class SwapOptions(option):
                    'exe_exrate',
                    'capped_exrate',
                    'pay_fix_rate',##支付固定利率
-                   'charge_fix_rate',##收取固定利率
+                   'charge_fix_rate',##收取固定利率固定部分
                    'interest_pay_way',##付息方式
+                   'charge_float_libor',##收取固定利率浮动部分
                    'trade_type'##交易类型
                    ]
         wherestring = """ delivery_date>='%s'"""%Now
        
         self.data = post.select(self.table,colname,wherestring)
         
-    def  cumputeLost(self,Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,capped_exrate,trade_type):
+    def  cumputeLost(self,Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,capped_exrate,trade_type,FixRate):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:
-           return SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,capped_exrate,trade_type)
+           return SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,capped_exrate,trade_type,FixRate)
       
         
     def updateDataToPostgres(self):

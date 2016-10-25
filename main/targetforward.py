@@ -77,7 +77,7 @@ def TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,logs,Now,TIV
 def simulationSpot(S, K,orderlist, Rdistribute,R,  TIV = 0.05,times=1000):
     """
     S:当前价格
-    R:锁定价格
+    K:锁定价格
     Rdistribute:该汇率的历史收益率分布图
     lags:默认收益率的天数，如果date天数小于 lags，那么收益的系数date/lags
     dateList:模拟的时间长度,[15,30,30,30,30]
@@ -106,7 +106,7 @@ def simulationSpot(S, K,orderlist, Rdistribute,R,  TIV = 0.05,times=1000):
     #code = orderlist_['currency_pair'].values[0]
     #if sell_currency+buy_currency==code:
         
-    orderlist_['price'] =orderlist_['price']/S
+    orderlist_['price'] =orderlist_['price']/1.0/times/S
     
     return orderlist_
 

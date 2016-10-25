@@ -25,6 +25,7 @@ class knockoptions(option):
         self.table = table_knock_option
         self.delta  =delta
         self.getDataFromPostgres()##从post提取数据
+        print '期权类型','ID','货币对','成交日期','交割日','损益'
         self.getDataFromMongo()##从mongo提取数据并更新损益
         self.updateDataToPostgres()##更新数据到post
         
@@ -44,17 +45,13 @@ class knockoptions(option):
         ##bank_rate
         forwarddict= {}
         for lst in self.data:
-            #sell_currency = lst['sell_currency']##卖出货币代码
+            
             sell_currency = lst['currency_pair'][:3]##卖出货币代码
             sell_currency_index = getcurrency(sell_currency)
             
-            #buy_currency  = lst['buy_currency']##买入货币代码
-            buy_currency = lst['currency_pair'][3:]##买入货币代码
-            #buy_currency_index = getcurrency(buy_currency)
-            #sell_currency = lst['sell_currency']
-            #sell_currency_index = getcurrency(sell_currency)
             
-            #buy_currency  = lst['buy_currency']
+            buy_currency = lst['currency_pair'][3:]##买入货币代码
+            
             buy_currency_index = getcurrency(buy_currency)
             
             currency_pair = lst['currency_pair']
@@ -76,23 +73,21 @@ class knockoptions(option):
             LockedRate = float(lst['rate'])
             currentRate = currency_dict[currency_pair]
             deliverydate = dateTostr(lst['delivery_date'])
+            print 'knockoptions',lst['id'],currency_pair,dateTostr(lst['trade_date']),deliverydate,
             forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,self.delta)
-
-            #if sell_currency+buy_currency!=currency_pair:
-               #LockedRate = 1.0/LockedRate
-               #currentRate = 1.0/currentRate
-            #   BuyRate,SellRate = SellRate,BuyRate
-            if forwarddict[lst['id']] is None:
-                forwarddict[lst['id']] =0.0
-            if lst['sell_currency']=='CNY':
-                local_currency = lst['buy_currency']
-            else:
-                local_currency = lst['sell_currency'] 
-            if sell_currency == local_currency:
+            
+            print forwarddict[lst['id']]
+            print '\n'
+            
+           
+            if forwarddict[lst['id']] is not None:
                 
-                forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount
-            else:
-                forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount 
+             
+                if lst['sell_currency']=='CNY' or lst['sell_currency']=='CNH':
+                    
+                    forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount 
+                else:
+                    forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount 
                 
             #if sell_currency+buy_currency!=currency_pair:
             #    forwarddict[lst['id']] = forwarddict[lst['id']]/currentRate
