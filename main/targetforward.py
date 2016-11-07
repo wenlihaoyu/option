@@ -53,7 +53,8 @@ def TargetRedemptionForward(spotList,orderlist,S,K,SellRate,BuyRate,logs,Now,TIV
     
     #MIC = 0
     ##判断历史累计收益是否已达到目标收益
-    CumMIC = orderlist['determined_date_rate'].map(lambda x:0 if x.__str__()=='nan' else max([K-x,0])).sum()
+    
+    CumMIC = orderlist['determined_date_rate'].map(lambda x:0 if x.__str__()=='nan' or x is None else max([K-x,0])).sum()
     R = (BuyRate - SellRate  )/360.0/100.0   ##两国货币拆解利率差
     #TIV = 0.5
     
@@ -123,6 +124,7 @@ def addMic(x,TIV):
     
 def simulation(orderlist,S,Rdistribute):
     X = []
+    
     for lst in orderlist:
         r = np.random.choice(Rdistribute,1)[0]
         
@@ -132,7 +134,7 @@ def simulation(orderlist,S,Rdistribute):
         else:
             tempS = X[-1]
             
-        if lst['determined_date_rate'].__str__()=='nan':
+        if lst['determined_date_rate'].__str__()=='nan' or lst['determined_date_rate'] is None:
             ##未到厘定日，那么模拟厘定日汇率
             
                x = tempS*(1+date*r)

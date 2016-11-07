@@ -6,10 +6,11 @@ Target Redemption Forward
 
 """
 from job import option
-from help.help import getNow,getRate,getcurrency,strTodate
+from help.help import getNow,getRate,strTodate
+from help.help import getcurrentbankrate
 from config.postgres  import  table_frs_option
 from database.mongodb import  RateExchange
-from database.mongodb import  BankRate
+#from database.mongodb import  BankRate
 from database.database import postgersql,mongodb
 #from numpy import float64
 from main.targetforward import  TargetRedemptionForward
@@ -51,12 +52,13 @@ class TargetRedemptionForwards(option):
         """
         from mongo get the currency_pairs and bank_rate
         """
+        trfdata = {}
         if self.data !=[]:
            
            S = {}##货币对最新汇率
            spot  = {}
            #mongo = mongodb()
-           trfdata = {}
+           
            for lst in self.data:
                ##获取厘定日汇率，未到立定日，以None填充
                
@@ -64,23 +66,14 @@ class TargetRedemptionForwards(option):
                date = lst.get('determined_date').strftime('%Y-%m-%d')
                determined_date_rate = getkline(code,date,self.mongo)##获取厘定日汇率
                lst.update({'determined_date_rate':determined_date_rate})
-               sell_currency = lst['currency_pair'][:3]##卖出货币代码
-               sell_currency_index = getcurrency(sell_currency)
-                
-               buy_currency = lst['currency_pair'][3:]##买入货币代码
-                
-               buy_currency_index = getcurrency(buy_currency)
+               
+               sell_currency = lst['currency_pair'][:3]
+               buy_currency  = lst['currency_pair'][3:]
+               
                ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
-               SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
-               BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
-               if SellRate is None or SellRate==[]:
-                   SellRate = 0
-               else:
-                   SellRate = float(SellRate[0].get('rate'))
-               if BuyRate is None or BuyRate==[]:
-                   BuyRate = 0
-               else:
-                   BuyRate = float(BuyRate[0].get('rate'))   
+            
+            
+               SellRate,BuyRate = getcurrentbankrate(sell_currency,buy_currency,ratetype)
                    
                if S.get(code) is None:
                    RE = RateExchange(code).getMax()
@@ -97,10 +90,20 @@ class TargetRedemptionForwards(option):
                sell_amount = np.float64(lst['sell_amount'])
                buy_amount = np.float64(lst['buy_amount'])
                
-               if lst['sell_currency']=='CNY' or lst['sell_currency']=='CNH':
-                     amount = buy_amount
+               
+                     
+               if   lst['type']==u'1':
+                        amount = buy_amount
+               elif lst['type']==u'2':
+                        amount = sell_amount
+               elif lst['type']==u'3':
+                  if lst['sell_currency']=='USD':
+                            amount = buy_amount
+                            
+                  else:
+                      amount = sell_amount
                else:
-                      amount = sell_amount 
+                    amount = None ##其他交易类型，暂时无法计算
                 
                if trfdata.get(lst['trade_id']) is None:
                    lags = getLags(self.data,lst['trade_id'])
@@ -136,7 +139,8 @@ class TargetRedemptionForwards(option):
              'determined_date',
              'delivery_date',
              'trp',
-             'rate'
+             'rate',
+             'type'
                 ]
         #wherestring = None
         #orderby = "order by trade_id, delivery_date"
@@ -192,6 +196,7 @@ class TargetRedemptionForwards(option):
         post = postgersql()
         updatelist=[]
         wherelist =[]
+        
         ##print Lost
         for lst in Lost:
             #if self.forwarddict[lst.get] is not None:

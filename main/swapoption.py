@@ -5,9 +5,9 @@ swap option
 @author: lywen
 """
 from help.help import getNow,strTodate
-#from forward import OrdinaryForward
+from forward import OrdinaryForward
 import numpy as np 
-import datetime as dt
+#import datetime as dt
 from scipy import stats
 
 def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRate,LockedRate,rateway,delta,capped_exrate,trade_type,FixRate):
@@ -39,7 +39,7 @@ def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRa
     Fixcharge = FixRate[2]/360.0
     
     Now = strTodate(getNow(),'%Y-%m-%d %H:%M:%S')
-    #value = OrdinaryForward(SellRate,BuyRate,deliverydate,LockedRate,currentRate)##当前时刻普通外汇的定价
+    value = OrdinaryForward(SellRate,BuyRate,deliverydate,LockedRate,currentRate)##当前时刻普通外汇的定价
     Setdate  = strTodate(Setdate+' 16:30:00','%Y-%m-%d %H:%M:%S')##厘定日时间
     
     deliverydate = strTodate(deliverydate+' 16:30:00','%Y-%m-%d %H:%M:%S')
@@ -84,16 +84,16 @@ def SwapOption(Setdate,SetRate,valuedate,deliverydate,currentRate,SellRate,BuyRa
         
         
     
-    print checkout, checkin,Lost,
+    #print checkout, checkin,Lost,
     if trade_type=='2':
         #区间式货币掉期(利率进行互换+固定补贴)
-        return  (checkin - checkout)  + Lost
+        return  (checkin - checkout)  + Lost - value
     elif trade_type=='3':
          #货币掉期（利率互换）
-         return (checkin - checkout)
+         return (checkin - checkout) -value
     elif trade_type=='4':
          #封顶式期权(固定补贴)
-         return Lost
+         return Lost -value
          
     
         

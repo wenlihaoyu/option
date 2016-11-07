@@ -3,14 +3,17 @@
 Created on Thu Sep  1 15:49:35 2016
 敲出式期权
 @author: lywen
+结汇的时候就是高于，购汇的时候是低于
 """
 
 
 from job import option
-from help.help import getNow,getRate,getcurrency,dateTostr
+from help.help import getNow,getRate,dateTostr
+from help.help import chooselocalmoney ##计算本金损益
+from help.help import getcurrentrate,getcurrentbankrate
 from config.postgres  import  table_knock_option
 from database.mongodb import  RateExchange
-from database.mongodb import  BankRate
+#from database.mongodb import  BankRate
 from database.database import postgersql
 from numpy import float64
 from main.knockoption import  knockoption
@@ -35,40 +38,26 @@ class knockoptions(option):
         """
         ## currency_pairs
         currency_pairs = list(set(map(lambda x:x['currency_pair'],self.data)))
-        currency_dict = {}
-        for currency_pair in currency_pairs:
-            RE = RateExchange(currency_pair).getMax()
-            if RE is not None and RE !=[]:
-               currency_dict[currency_pair] = RE[0]['Close']
-        self.currency_dict = currency_dict
+        currency_dict = getcurrentrate(currency_pairs)
         
         ##bank_rate
         forwarddict= {}
         for lst in self.data:
             
-            sell_currency = lst['currency_pair'][:3]##卖出货币代码
-            sell_currency_index = getcurrency(sell_currency)
-            
-            
-            buy_currency = lst['currency_pair'][3:]##买入货币代码
-            
-            buy_currency_index = getcurrency(buy_currency)
-            
+            sell_currency = lst['currency_pair'][:3]
+            buy_currency  = lst['currency_pair'][3:]
             currency_pair = lst['currency_pair']
             ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
-            SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
-            BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
-            sell_amount = float64(lst['sell_amount'])
-            buy_amount = float64(lst['buy_amount'])
+            
+            
+            SellRate,BuyRate = getcurrentbankrate(sell_currency,buy_currency,ratetype)
+            #sell_amount = float64(lst['sell_amount'])
+            #buy_amount = float64(lst['buy_amount'])
             Setdate = dateTostr(lst['determined_date'])
             SetRate = RateExchange(currency_pair).getdayMax(Setdate)##厘定日汇率
             kncockRate = float64(lst['knockout_exrate'] )##敲出汇率
             
-            if BuyRate is not  None and BuyRate !=[]:
-                BuyRate=float(BuyRate[0]['rate'])/100.0
-                
-            if SellRate is not  None and SellRate !=[]:
-                SellRate=float(SellRate[0]['rate'])/100.0
+            
                 
             LockedRate = float(lst['rate'])
             currentRate = currency_dict[currency_pair]
@@ -83,14 +72,9 @@ class knockoptions(option):
             if forwarddict[lst['id']] is not None:
                 
              
-                if lst['sell_currency']=='CNY' or lst['sell_currency']=='CNH':
-                    
-                    forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount 
-                else:
-                    forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount 
+                forwarddict[lst['id']] = chooselocalmoney(lst,forwarddict[lst['id']])
                 
-            #if sell_currency+buy_currency!=currency_pair:
-            #    forwarddict[lst['id']] = forwarddict[lst['id']]/currentRate
+            
         self.forwarddict = forwarddict
         
           
@@ -114,9 +98,10 @@ class knockoptions(option):
                'determined_date',
                'delivery_date',
                'rate',
-               'knockout_exrate'
+               'knockout_exrate',
+               'type'
                 ]
-        wherestring = """ delivery_date>='%s'"""%Now
+        wherestring = """ delivery_date>='{}' and trade_date<='{}'""".format(Now,Now)
        
         self.data = post.select(self.table,colname,wherestring)
         

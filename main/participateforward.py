@@ -3,20 +3,27 @@
 Created on Thu Sep  1 11:05:10 2016
 参与式远期
 @author: lywen
+结汇的时候就是高于，购汇的时候是低于
 """
 
 from help.help import getNow,strTodate
 from scipy import stats
 import numpy as np
 
-def participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta):
+def participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta,trade_type):
     """
     参与式远期
-    例：公司预计3个月后有笔200万美元收汇，拟操作参与式远期
+    例：公司预计3个月后有笔200万美元结汇，拟操作参与式远期
     锁定汇率6.73，本金为100万美元
     情景分析：
     IF 厘定日即期汇率<=6.73,则本金交割100万美元
     厘定日即期汇率>6.73，则本金交割本金*2,即200万美元
+    
+    例：公司预计3个月后有笔100万美元购汇，拟操作参与式远期
+    锁定汇率6.73，本金为100万美元
+    情景分析：
+    IF 厘定日即期汇率<=6.73,则本金交割本金*2,即200万美元
+    厘定日即期汇率>6.73，则本金交割100万美元
     
         Setdate:厘定日
         SetRate:厘定日汇率
@@ -27,6 +34,7 @@ def participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellR
         SellRate:本币利率
         BuyRate:外币利率
         delta:汇率波动率
+        trade_type:结汇、购汇、互换
     """
     Now = strTodate(getNow(),'%Y-%m-%d %H:%M:%S')
     Setdate = strTodate(Setdate+' 16:30:00','%Y-%m-%d %H:%M:%S')##厘定日下午16:30:00
@@ -51,16 +59,34 @@ def participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellR
         d2 = d1-delta*np.sqrt(set_t)
         #N1 = stats.norm.cdf(d1)  
         N2 = stats.norm.cdf(d2)##厘定日汇率大于锁定汇率的概率
+        if trade_type==u'1':
+            ##小于锁定汇率时双倍成交
+            ##期望成交金额 N2 + 2*(1-N2)
+            p = 2- N2
         
-        ##期望成交金额 2*N2 + (1-N2)
-        #p = 2 - N2
-        p = N2+1
+        elif trade_type==u'2':
+            ##小大锁定汇率时双倍成交
+            ##期望成交金额 2*N2 + (1-N2)
+            p = N2+1
+        else:
+            p=0
         
     else:
         if SetRate<=LockedRate:
-            p = 1
+            if trade_type==u'1':
+               p = 2
+            elif trade_type==u'2':
+                p=1
+            else:
+                p=0
         else:
-            p = 2
+           if   trade_type==u'1':
+               p = 1
+           elif trade_type==u'2':
+                p=2
+           else:
+               p=0
+               
             
     ##定价 p*
     S0 = LockedRate* np.exp(-(BuyRate -SellRate) *t)

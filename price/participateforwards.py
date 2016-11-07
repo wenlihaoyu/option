@@ -6,12 +6,14 @@ participateforward 价值计算
 """
 
 from job import option
-from help.help import getNow,getRate,getcurrency,dateTostr
+from help.help import getNow,getRate,dateTostr
+from help.help import getcurrentrate,getcurrentbankrate
+from help.help import chooselocalmoney ##计算本金损益
 from config.postgres  import  table_participate_forward
 from database.mongodb import  RateExchange
-from database.mongodb import  BankRate
+#from database.mongodb import  BankRate
 from database.database import postgersql
-from numpy import float64
+#from numpy import float64
 from main.participateforward import  participateforward
 
 class participateforwards(option):
@@ -34,41 +36,33 @@ class participateforwards(option):
         """
         ## currency_pairs
         currency_pairs = list(set(map(lambda x:x['currency_pair'],self.data)))
-        currency_dict = {}
-        for currency_pair in currency_pairs:
-            RE = RateExchange(currency_pair).getMax()
-            if RE is not None and RE !=[]:
-               currency_dict[currency_pair] = RE[0]['Close']##获取最新汇率
-        self.currency_dict = currency_dict
+        currency_dict = getcurrentrate(currency_pairs)
+        
         
         ##bank_rate
         forwarddict= {}
         for lst in self.data:
-            #sell_currency = lst['sell_currency']##卖出货币代码
-            sell_currency = lst['currency_pair'][:3]##卖出货币代码
-            sell_currency_index = getcurrency(sell_currency)
-            
-            #buy_currency  = lst['buy_currency']##买入货币代码
-            buy_currency = lst['currency_pair'][3:]##买入货币代码
-            buy_currency_index = getcurrency(buy_currency)
-            
+            sell_currency = lst['currency_pair'][:3]
+            buy_currency  = lst['currency_pair'][3:]
             currency_pair = lst['currency_pair']
             ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
-            SellRate = BankRate(sell_currency_index,ratetype).getMax()##获取卖出本币的拆借利率
-            BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的拆借利率
-            sell_amount = float64(lst['sell_amount'])
-            buy_amount = float64(lst['buy_amount'])
+            
+            
+            SellRate,BuyRate = getcurrentbankrate(sell_currency,buy_currency,ratetype)
+            
+            
+            #sell_amount = float64(lst['sell_amount'])
+            #buy_amount = float64(lst['buy_amount'])
             Setdate = dateTostr(lst['determined_date'])
             SetRate = RateExchange(currency_pair).getdayMax(Setdate)##获取厘定日汇率
             
-            if BuyRate is not  None and BuyRate !=[]:
-                BuyRate=float(BuyRate[0]['rate'])/100.0
-                
-            if SellRate is not  None and SellRate !=[]:
-                SellRate=float(SellRate[0]['rate'])/100.0
+            
                 
             LockedRate = float(lst['rate'])##锁定汇率
-            currentRate = currency_dict[currency_pair]##实时汇率
+            currentRate = currency_dict.get(currency_pair)##实时汇率
+            if currentRate is None:
+                print "{} not fund!\n".format(currency_pair)
+                continue
             deliverydate = dateTostr(lst['delivery_date'])##日期转化为字符串
             print 'participateforwards',lst['id'],currency_pair,dateTostr(lst['trade_date']),deliverydate,
             forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,self.delta)
@@ -77,11 +71,7 @@ class participateforwards(option):
             if forwarddict[lst['id']] is not None:
                 
             
-                if lst['sell_currency']=='CNY' or lst['sell_currency']=='CNH':
-                    
-                    forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount
-                else:
-                    forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount 
+                forwarddict[lst['id']] = chooselocalmoney(lst,forwarddict[lst['id']])
                 
         self.forwarddict = forwarddict
         
@@ -105,9 +95,10 @@ class participateforwards(option):
                'trade_date',
                'determined_date',
                'delivery_date',
-               'rate'
+               'rate',
+               'type'
                 ]
-        wherestring = """ delivery_date>='%s'"""%Now
+        wherestring =  """ delivery_date>='{}' and trade_date<='{}'""".format(Now,Now)
        
         self.data = post.select(self.table,colname,wherestring)
         

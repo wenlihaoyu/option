@@ -206,7 +206,69 @@ def getbankrate(currency,valuedate,deliverdate,interest_pay_way,charge_float_lib
           
           
              
-          
+##获取汇率对应的汇率
+from database.mongodb import  RateExchange             
+def getcurrentrate(currencyPairs):
+        currency_dict = {}
+        for currency_pair in currencyPairs:
+            RE = RateExchange(currency_pair).getMax()
+            if RE is not None and RE !=[]:
+               currency_dict[currency_pair] = RE[0]['Close']
+        return currency_dict
+        
+##获取银行拆借利率
+def getcurrentbankrate(sell_currency,buy_currency,ratetype):
+   
+    sell_currency_index = getcurrency(sell_currency)
+            
+           
     
-          
+    buy_currency_index = getcurrency(buy_currency)
+            
+            
+            
+    SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
+    BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
+    if BuyRate is not  None and BuyRate !=[]:
+                BuyRate=float(BuyRate[0]['rate'])/100.0
+    else:
+        BuyRate=0.0
+                
+    if SellRate is not  None and SellRate !=[]:
+                SellRate=float(SellRate[0]['rate'])/100.0 
+    else:
+        SellRate=0.0
+    return SellRate,BuyRate
+    
+from numpy import float64         
+def chooselocalmoney(lst,lost):
+    """
+    判断本金货币及本金损益
+    lost:损益
+    """
+    ##计算损益比例
+    if lst['sell_currency']+lst['buy_currency']==lst['currency_pair']:
+        lost = -lost
+            
+    ##判断本金                
+    ##如果是购汇交易，那么本金就是买入金额；如果是结汇交易，那么本金就是卖出金额；如果是互换交易，那么本金就是非美元币种；
+    ## localmoney 本金
+    ##    type =1,2,3-> 购汇, 结汇,互换 
+    if lst['type']==u'1':
+                 localmoney = float64(lst.get('buy_amout')) 
+    elif     lst['type']==u'2':
+                localmoney = float64(lst.get('sell_amount'))
+    elif lst['type']==u'3':
+          if lst['sell_currency']=='USD':
+                    localmoney = float64(lst.get('buy_amout'))
+                    
+          else:
+                    localmoney = float64(lst.get('sell_amount'))
+    else:
+        localmoney = None ##其他交易类型，暂时无法计算
+    if localmoney and localmoney.__str__() !='nan' :
+        return lost * localmoney ##本金损益
+    else:
+        return None
+        
      

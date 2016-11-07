@@ -20,7 +20,7 @@ from price.targetforwards import TargetRedemptionForwards##目标可赎回式远
 
 if '__main__'==__name__:
     #fd = participateforwards(0.1)
-    for items in [participateforwards,CollaOptions,knockoptions,forwards,SwapOptions,TargetRedemptionForwards]:
-        items()
-        #TargetRedemptionForwards()
+    #for items in [participateforwards,CollaOptions,knockoptions,forwards,SwapOptions,TargetRedemptionForwards]:
+    #    items()
+    SwapOptions()
     

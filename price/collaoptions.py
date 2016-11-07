@@ -7,10 +7,13 @@ CollaOption 领式期权计算
 
 
 from job import option
-from help.help import getNow,getRate,getcurrency,dateTostr
+from help.help import getNow,getRate,dateTostr
+from help.help import getcurrentrate,getcurrentbankrate
+from help.help import chooselocalmoney##本金损益
 from config.postgres  import  table_collars_option##table name
+
 from database.mongodb import  RateExchange
-from database.mongodb import  BankRate
+#from database.mongodb import  BankRate
 from database.database import postgersql
 from numpy import float64
 
@@ -46,68 +49,54 @@ class CollaOptions(option):
         """
         ## currency_pairs
         currency_pairs = list(set(map(lambda x:x['currency_pair'],self.data)))
-        currency_dict = {}
-        for currency_pair in currency_pairs:
-            RE = RateExchange(currency_pair).getMax()
-            if RE is not None and RE !=[]:
-               currency_dict[currency_pair] = RE[0]['Close']##实时汇率 
-        self.currency_dict = currency_dict
+        currency_dict = getcurrentrate(currency_pairs)
+        
         
         ##bank_rate
         forwarddict= {}
         for lst in self.data:
             
-            #sell_currency = lst['sell_currency']
+           
             sell_currency = lst['currency_pair'][:3]
-            sell_currency_index = getcurrency(sell_currency)##拆借利率类型
-            
-            #buy_currency  = lst['buy_currency']
-            buy_currency  =  lst['currency_pair'][3:]
-            buy_currency_index = getcurrency(buy_currency)##拆借利率类型
-            
+            buy_currency  = lst['currency_pair'][3:]
             currency_pair = lst['currency_pair']
-            ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)##拆借利率期限
-            SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
-            BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
-            sell_amount = float64(lst['sell_amount'])
-            buy_amount  = float64(lst['buy_amount'])
+            ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
+            
+            
+            SellRate,BuyRate = getcurrentbankrate(sell_currency,buy_currency,ratetype)
+            
+            
+            #sell_amount = float64(lst['sell_amount'])
+            #buy_amount  = float64(lst['buy_amount'])
             ##获取厘定日的汇率，如果还未到厘定日，那么汇率返回None
             Setdate = dateTostr(lst['determined_date'])##厘定日
             SetRate = RateExchange(currency_pair).getdayMax(Setdate)##厘定日汇率
+            
             if SetRate ==[]:
                 SetRate = None## 还未到厘定日
-            
-            
-            ##买入货币的拆借 利率修正值
-            if BuyRate is not  None and BuyRate !=[]:
-                BuyRate=float64(BuyRate[0]['rate'])/100.0
-                
-            ##买出货币的拆借 利率修正值    
-            if SellRate is not  None and SellRate !=[]:
-                SellRate = float64(SellRate[0]['rate'])/100.0
-                
+     
             ## 执行汇率上下限
             strikeLowerRate = float64(lst['exe_doexrate'])
             strikeUpperRate = float64(lst['exe_upexrate'])
+      
+            currentRate = currency_dict.get(currency_pair)
+            if currentRate is None:
+                print "{ } not Fund!\n".format(currency_pair)
+                continue
             
-                
-            
-            currentRate = currency_dict[currency_pair]
             deliverydate = dateTostr(lst['delivery_date'])
             
             print 'CollaOptions',lst['id'],currency_pair,dateTostr(lst['trade_date']),deliverydate,
             forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,strikeLowerRate,strikeUpperRate,currentRate,SellRate,BuyRate,self.delta)
             
-            print forwarddict[lst['id']]
-            print '\n'
+            
             if forwarddict[lst['id']] is not  None:
                 
                 
-                if lst['sell_currency']=='CNY' or lst['sell_currency']=='CNH':
-                    
-                    forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount 
-                else:
-                    forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount    
+                 ## 计算本金损益
+                  forwarddict[lst['id']] = chooselocalmoney(lst,forwarddict[lst['id']])  
+            print forwarddict[lst['id']]
+            print '\n'
         self.forwarddict = forwarddict
             
                 
@@ -129,8 +118,10 @@ class CollaOptions(option):
                     'determined_date',
                     'delivery_date',
                     'exe_doexrate',
-                    'exe_upexrate']
-        wherestring = """ delivery_date>='%s'"""%Now
+                    'exe_upexrate',
+                    'type'
+                    ]
+        wherestring = """ delivery_date>='{}' and trade_date<='{}'""".format(Now,Now)
        
         self.data = post.select(self.table,colname,wherestring)
         

@@ -3,14 +3,15 @@
 Created on Mon Aug 29 17:56:36 2016
 forwards
 @author: lywen
+修改本金计算逻辑 
 """
 from job import option
-from help.help import getNow,getRate,getcurrency,dateTostr
+from help.help import getNow,getRate,dateTostr
+from help.help import getcurrentrate,getcurrentbankrate
+from help.help import chooselocalmoney ##计算本金损益
 from config.postgres  import  table_comlong_term
-from database.mongodb import  RateExchange
-from database.mongodb import  BankRate
+#from database.mongodb import  RateExchange
 from database.database import postgersql
-from numpy import float64
 from main.forward     import OrdinaryForward
 class forwards(option):
     """
@@ -32,59 +33,49 @@ class forwards(option):
          #卖出币种如果是人民币(CNY/CNH)，那么买入币种是本金，否则就是卖出币种
         """
         ## currency_pairs
+        ##--------------------获取汇率对的实时汇率
         currency_pairs = list(set(map(lambda x:x['currency_pair'],self.data)))
-        currency_dict = {}
-        for currency_pair in currency_pairs:
-            RE = RateExchange(currency_pair).getMax()
-            if RE is not None and RE !=[]:
-               currency_dict[currency_pair] = RE[0]['Close']
-        self.currency_dict = currency_dict
+       
+        currency_dict = getcurrentrate(currency_pairs)
+        ##--------------------获取汇率对的实时汇率
         
-        ##bank_rate
+        
         forwarddict= {}
         for lst in self.data:
-            ##跟改
-            #sell_currency = lst['sell_currency']
+            ##
+            
             sell_currency = lst['currency_pair'][:3]
-            sell_currency_index = getcurrency(sell_currency)
-            
-            #buy_currency  = lst['buy_currency']
-            buy_currency = lst['currency_pair'][3:]
-            buy_currency_index = getcurrency(buy_currency)
-            
+            buy_currency  = lst['currency_pair'][3:]
             currency_pair = lst['currency_pair']
             ratetype = getRate((lst['delivery_date'] -lst['trade_date']).days)
-            SellRate = BankRate(sell_currency_index,ratetype).getMax()##卖出本币的利率
-            BuyRate  = BankRate(buy_currency_index,ratetype).getMax()##买入货币的利率
-            sell_amount = float64(lst['sell_amount'])
-            buy_amount = float64(lst['buy_amount'])
             
-            if BuyRate is not  None and BuyRate !=[]:
-                BuyRate=float(BuyRate[0]['rate'])/100.0
-                
-            if SellRate is not  None and SellRate !=[]:
-                SellRate=float(SellRate[0]['rate'])/100.0
-                
-            LockedRate = float(lst['rate'])
-            currentRate = currency_dict[currency_pair]
-            deliverydate = dateTostr(lst['delivery_date'])
+            
+            SellRate,BuyRate = getcurrentbankrate(sell_currency,buy_currency,ratetype)##获取银行拆借利率
+              
+            LockedRate   = float(lst['rate'])##锁定汇率
+            
+            currentRate  = currency_dict.get(currency_pair)##即期实时汇率
+            if currentRate is None:
+                print "{} not fund!\n".format(currency_pair)
+                continue
+            
+            deliverydate = dateTostr(lst['delivery_date'])##交割日期
             
            
             print 'forwards',lst['id'],currency_pair,dateTostr(lst['trade_date']),deliverydate,
+
             forwarddict[lst['id']] = self.cumputeLost(SellRate,BuyRate,deliverydate,LockedRate,currentRate)
-             #卖出币种如果是人民币，那么买入币种是本金，否则就是卖出币种            
+             
+            
+            ## 计算本金损益
+            if forwarddict[lst['id']] is not  None:
+                forwarddict[lst['id']] = chooselocalmoney(lst,forwarddict[lst['id']])
+            
             print forwarddict[lst['id']]
             print '\n'
-            if forwarddict[lst['id']] is not None:
-                if lst['sell_currency']=='CNY' or lst['sell_currency']=='CNH':
-                    
-                    forwarddict[lst['id']] =forwarddict[lst['id']]*buy_amount 
-                else:
-                    forwarddict[lst['id']] =forwarddict[lst['id']]*sell_amount
             
             
-            #if sell_currency+buy_currency!=currency_pair:
-            #    forwarddict[lst['id']] =forwarddict[lst['id']]/currentRate
+            
         self.forwarddict = forwarddict
             
                 
@@ -95,8 +86,8 @@ class forwards(option):
         Now = getNow('%Y-%m-%d')
   
         post = postgersql()
-        colname = ['id','trade_id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency','buy_amount']
-        wherestring = """ delivery_date>='%s'"""%Now
+        colname = ['id','trade_id','currency_pair','trade_date','delivery_date','rate','sell_currency','sell_amount','buy_currency','buy_amount','type']
+        wherestring = """ delivery_date>='{}' and trade_date<='{}'""".format(Now,Now)
        
         self.data = post.select(self.table ,colname,wherestring)
         
