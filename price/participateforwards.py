@@ -65,7 +65,7 @@ class participateforwards(option):
                 continue
             deliverydate = dateTostr(lst['delivery_date'])##日期转化为字符串
             print 'participateforwards',lst['id'],currency_pair,dateTostr(lst['trade_date']),deliverydate,
-            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,self.delta)
+            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,self.delta,lst['type'])
             print forwarddict[lst['id']]
             print '\n'
             if forwarddict[lst['id']] is not None:
@@ -102,12 +102,12 @@ class participateforwards(option):
        
         self.data = post.select(self.table,colname,wherestring)
         
-    def  cumputeLost(self,Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta  ):
+    def  cumputeLost(self,Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta,types  ):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:
            ##return sell_amount*participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta)
-           return participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta)
+           return participateforward(Setdate,SetRate,deliverydate,currentRate,LockedRate,SellRate,BuyRate,delta,types)
         
     def updateDataToPostgres(self):
         """

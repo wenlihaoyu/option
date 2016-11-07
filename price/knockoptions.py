@@ -63,7 +63,7 @@ class knockoptions(option):
             currentRate = currency_dict[currency_pair]
             deliverydate = dateTostr(lst['delivery_date'])
             print 'knockoptions',lst['id'],currency_pair,dateTostr(lst['trade_date']),deliverydate,
-            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,self.delta)
+            forwarddict[lst['id']] = self.cumputeLost(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,self.delta,lst['type'])
             
             print forwarddict[lst['id']]
             print '\n'
@@ -105,11 +105,11 @@ class knockoptions(option):
        
         self.data = post.select(self.table,colname,wherestring)
         
-    def  cumputeLost(self,Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,delta  ):
+    def  cumputeLost(self,Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,delta,types  ):
        if SellRate in [None,[]] or BuyRate in [None,[]]:
            return None
        else:
-           return knockoption(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,delta)
+           return knockoption(Setdate,SetRate,deliverydate,currentRate,LockedRate,kncockRate,SellRate,BuyRate,delta,types)
       
         
     def updateDataToPostgres(self):
